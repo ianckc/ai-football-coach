@@ -45,7 +45,7 @@ cd docs
 npm start
 ```
 
-Starts the docs site at [http://localhost:3000](http://localhost:3000).
+Starts the docs site at [http://localhost:3001](http://localhost:3001).
 
 ### Build
 
