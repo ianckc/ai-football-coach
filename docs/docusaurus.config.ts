@@ -16,7 +16,7 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'http://localhost:3000',
+  url: 'http://localhost:3001',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
@@ -91,6 +91,10 @@ const config: Config = {
             {
               label: 'Introduction',
               to: '/docs/intro',
+            },
+            {
+              label: 'Backend API',
+              to: '/docs/backend-api',
             },
           ],
         },

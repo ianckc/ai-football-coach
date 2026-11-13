@@ -109,18 +109,29 @@ ticket-create title body="" status=env_var_or_default("STATUS", "Ready"):
 
     if [ -z "$project_id" ] || [ -z "$field_id" ] || [ -z "$option_id" ]; then
       echo "Resolving Status field/option for '$status'…"
-      fields="$(gh project field-list "$NUMBER" --owner "$OWNER" --format json --limit 50)"
-      project_id="$(gh project view "$NUMBER" --owner "$OWNER" --format json -q .id)"
-      field_id="$(printf '%s' "$fields" | jq -r '
-        .fields[]
-        | select(.name == "Status")
-        | .id' | head -n1)"
-      option_id="$(printf '%s' "$fields" | jq -r --arg status "$status" '
-        .fields[]
-        | select(.name == "Status")
-        | .options[]?
-        | select(.name == $status)
-        | .id' | head -n1)"
+      gh_owner="$OWNER"
+      me="$(gh api user -q .login 2>/dev/null || true)"
+      if [ -n "$me" ] && [ "$me" = "$OWNER" ]; then
+        gh_owner="@me"
+      fi
+      fields="$(gh project field-list "$NUMBER" --owner "$gh_owner" --format json --limit 50 2>/dev/null || true)"
+      project_id="$(gh project view "$NUMBER" --owner "$gh_owner" --format json -q .id 2>/dev/null || true)"
+      if [ -z "$fields" ] || [ -z "$project_id" ]; then
+        fields="$(gh project field-list "$NUMBER" --owner "$OWNER" --format json --limit 50 2>/dev/null || true)"
+        project_id="$(gh project view "$NUMBER" --owner "$OWNER" --format json -q .id 2>/dev/null || true)"
+      fi
+      if [ -n "$fields" ]; then
+        field_id="$(printf '%s' "$fields" | jq -r '
+          .fields[]?
+          | select(.name == "Status")
+          | .id' | head -n1)"
+        option_id="$(printf '%s' "$fields" | jq -r --arg status "$status" '
+          .fields[]?
+          | select(.name == "Status")
+          | .options[]?
+          | select(.name == $status)
+          | .id' | head -n1)"
+      fi
     fi
 
     if [ -n "$project_id" ] && [ -n "$field_id" ] && [ -n "$option_id" ]; then
@@ -131,7 +142,7 @@ ticket-create title body="" status=env_var_or_default("STATUS", "Ready"):
         --single-select-option-id "$option_id"
       echo "Status → $status"
     else
-      echo "Could not set Status=$status — set it on the board, or configure FACTORY_PROJECT_ID / FACTORY_STATUS_*_OPTION_ID" >&2
+      echo "Could not set Status=$status — set it on the board, or run: just project-ids" >&2
     fi
 
     number="$(printf '%s' "$url" | grep -oE '[0-9]+$')"
@@ -231,37 +242,107 @@ ticket-start number:
     field_id="${FACTORY_STATUS_FIELD_ID:-}"
     option_id="${FACTORY_STATUS_IN_PROGRESS_OPTION_ID:-}"
     if [ -z "$project_id" ] || [ -z "$field_id" ] || [ -z "$option_id" ]; then
-      fields="$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json --limit 50)"
-      project_id="$(gh project view "$PROJECT_NUMBER" --owner "$OWNER" --format json -q .id)"
-      field_id="$(printf '%s' "$fields" | jq -r '
-        .fields[]
-        | select(.name == "Status")
-        | .id' | head -n1)"
-      option_id="$(printf '%s' "$fields" | jq -r --arg status "$IN_PROGRESS" '
-        .fields[]
-        | select(.name == "Status")
-        | .options[]?
-        | select(.name == $status)
-        | .id' | head -n1)"
+      gh_owner="$OWNER"
+      me="$(gh api user -q .login 2>/dev/null || true)"
+      if [ -n "$me" ] && [ "$me" = "$OWNER" ]; then
+        gh_owner="@me"
+      fi
+      fields="$(gh project field-list "$PROJECT_NUMBER" --owner "$gh_owner" --format json --limit 50 2>/dev/null || true)"
+      project_id="$(gh project view "$PROJECT_NUMBER" --owner "$gh_owner" --format json -q .id 2>/dev/null || true)"
+      if [ -z "$fields" ] || [ -z "$project_id" ]; then
+        fields="$(gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json --limit 50 2>/dev/null || true)"
+        project_id="$(gh project view "$PROJECT_NUMBER" --owner "$OWNER" --format json -q .id 2>/dev/null || true)"
+      fi
+      if [ -n "$fields" ]; then
+        field_id="$(printf '%s' "$fields" | jq -r '
+          .fields[]?
+          | select(.name == "Status")
+          | .id' | head -n1)"
+        option_id="$(printf '%s' "$fields" | jq -r --arg status "$IN_PROGRESS" '
+          .fields[]?
+          | select(.name == "Status")
+          | .options[]?
+          | select(.name == $status)
+          | .id' | head -n1)"
+      fi
     fi
 
-    if [ -z "$project_id" ] || [ -z "$field_id" ] || [ -z "$option_id" ]; then
-      echo "Could not resolve Status='$IN_PROGRESS' field/option IDs" >&2
-      exit 1
+    if [ -n "$project_id" ] && [ -n "$field_id" ] && [ -n "$option_id" ]; then
+      gh project item-edit \
+        --id "$item_id" \
+        --project-id "$project_id" \
+        --field-id "$field_id" \
+        --single-select-option-id "$option_id"
+      status_note="$IN_PROGRESS"
+    else
+      echo "Warning: could not set Status='$IN_PROGRESS' (branch was created)." >&2
+      echo "Set it on the board, or run: just project-ids" >&2
+      if [ -n "${fields:-}" ]; then
+        echo "Status options seen:" >&2
+        printf '%s' "$fields" | jq -r '
+          .fields[]?
+          | select(.name == "Status")
+          | .options[]?
+          | "  - \(.name)"' >&2 || true
+      fi
+      status_note="(unchanged — set manually)"
     fi
-
-    gh project item-edit \
-      --id "$item_id" \
-      --project-id "$project_id" \
-      --field-id "$field_id" \
-      --single-select-option-id "$option_id"
 
     echo
     echo "Issue:  $url"
     echo "Branch: $branch"
-    echo "Status: $IN_PROGRESS"
+    echo "Status: $status_note"
     echo "itemId: $item_id"
     echo "Next:   just run-ticket '$REPO#$number'"
+
+# Print Project / Status field IDs to paste into factory.env (needs gh project scopes).
+[group('tickets')]
+project-ids:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    OWNER="${FACTORY_PROJECT_OWNER:-}"
+    NUMBER="${FACTORY_PROJECT_NUMBER:-}"
+    if [ -z "$OWNER" ] || [ -z "$NUMBER" ]; then
+      echo "Set FACTORY_PROJECT_OWNER and FACTORY_PROJECT_NUMBER (see factory.env.example)" >&2
+      exit 1
+    fi
+    command -v gh >/dev/null || { echo "gh CLI is required" >&2; exit 1; }
+    command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+
+    gh_owner="$OWNER"
+    me="$(gh api user -q .login 2>/dev/null || true)"
+    if [ -n "$me" ] && [ "$me" = "$OWNER" ]; then
+      gh_owner="@me"
+    fi
+
+    echo "Resolving project $OWNER/$NUMBER (gh --owner $gh_owner)…"
+    project_json="$(gh project view "$NUMBER" --owner "$gh_owner" --format json 2>/dev/null || true)"
+    fields="$(gh project field-list "$NUMBER" --owner "$gh_owner" --format json --limit 50 2>/dev/null || true)"
+    if [ -z "$project_json" ] || [ -z "$fields" ]; then
+      echo "Retrying with --owner $OWNER…" >&2
+      project_json="$(gh project view "$NUMBER" --owner "$OWNER" --format json)"
+      fields="$(gh project field-list "$NUMBER" --owner "$OWNER" --format json --limit 50)"
+    fi
+
+    project_id="$(printf '%s' "$project_json" | jq -r .id)"
+    field_id="$(printf '%s' "$fields" | jq -r '.fields[]? | select(.name == "Status") | .id' | head -n1)"
+    ready_id="$(printf '%s' "$fields" | jq -r --arg s "${FACTORY_STATUS_READY:-Ready}" '
+      .fields[]? | select(.name == "Status") | .options[]? | select(.name == $s) | .id' | head -n1)"
+    in_progress_id="$(printf '%s' "$fields" | jq -r --arg s "${FACTORY_STATUS_IN_PROGRESS:-In Progress}" '
+      .fields[]? | select(.name == "Status") | .options[]? | select(.name == $s) | .id' | head -n1)"
+    done_id="$(printf '%s' "$fields" | jq -r --arg s "${FACTORY_STATUS_DONE:-Done}" '
+      .fields[]? | select(.name == "Status") | .options[]? | select(.name == $s) | .id' | head -n1)"
+
+    echo
+    echo "Paste into factory.env:"
+    echo "FACTORY_PROJECT_ID=$project_id"
+    echo "FACTORY_STATUS_FIELD_ID=$field_id"
+    echo "FACTORY_STATUS_READY_OPTION_ID=$ready_id"
+    echo "FACTORY_STATUS_IN_PROGRESS_OPTION_ID=$in_progress_id"
+    echo "FACTORY_STATUS_DONE_OPTION_ID=$done_id"
+    echo
+    echo "Status options:"
+    printf '%s' "$fields" | jq -r '.fields[]? | select(.name == "Status") | .options[]? | "  - \(.name) → \(.id)"'
 
 # Start the TDD factory for an issue (owner/repo#N, URL, or number with FACTORY_REPO).
 [group('factory')]

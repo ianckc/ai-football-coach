@@ -1,0 +1,78 @@
+---
+sidebar_position: 3
+---
+
+# Backend API
+
+The Rust/Axum service in `backend/` exposes HTTP APIs for the product. It listens on `0.0.0.0:3000` by default.
+
+## Run locally
+
+From the repository root:
+
+```bash
+cd backend
+cargo run
+```
+
+Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition).
+
+## Endpoints
+
+### `GET /health`
+
+Liveness check.
+
+**Response:** `200 OK`
+
+```json
+{ "status": "ok" }
+```
+
+### `POST /accounts`
+
+Create a coach account. Passwords are hashed with argon2 before storage. The current store is **in-memory** (not durable across restarts). Login, email verification, password reset, and a persistent database are out of scope for this endpoint.
+
+**Request:** `Content-Type: application/json`
+
+```json
+{
+  "email": "coach@example.com",
+  "password": "secret"
+}
+```
+
+| Field | Rules |
+|-------|--------|
+| `email` | Required non-empty string after trim; must look like `local@domain.tld` |
+| `password` | Required non-empty string |
+
+**Success:** `201 Created`
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "coach@example.com"
+}
+```
+
+- `id` is a UUID v4 string.
+- The password is never returned.
+
+**Errors**
+
+| Status | When | Body shape |
+|--------|------|------------|
+| `400` | Missing, empty, or invalid email or password | JSON object (e.g. `{ "error": "…" }`) |
+| `409` | Email already registered | JSON object (e.g. `{ "error": "…" }`) |
+| `415` | Body is not JSON | (non-JSON content type) |
+
+Email uniqueness is case-sensitive with the current store (`Coach@example.com` and `coach@example.com` are distinct).
+
+**Example**
+
+```bash
+curl -sS -X POST http://127.0.0.1:3000/accounts \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"coach@example.com","password":"secret"}'
+```

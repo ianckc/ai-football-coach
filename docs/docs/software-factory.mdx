@@ -71,7 +71,7 @@ FACTORY_PROJECT_NUMBER=1
 FACTORY_REPO=your-org/ai-football-coach
 
 FACTORY_STATUS_READY=Ready
-FACTORY_STATUS_IN_PROGRESS=In Progress
+FACTORY_STATUS_IN_PROGRESS="In Progress"
 FACTORY_STATUS_DONE=Done
 ```
 
@@ -86,7 +86,7 @@ swamp behavior run quality-static execute
 swamp behavior run list-ready-issues execute
 ```
 
-Until `backend/` and `frontend/` exist, the quality commands use stubs. That is expected.
+`quality-tests` runs `cargo test` in `backend/` when that crate exists (and frontend tests when scaffolded). The `work-orders/.force-red` stub only applies when neither product app is present.
 
 ## Use the factory
 
@@ -130,7 +130,7 @@ swamp workflow approvals
 
 1. Paste the Agent A prompt into Cursor.  
 2. Encode **one** acceptance slice as tests. Leave the suite **red**.  
-3. Before product apps exist: create `work-orders/.force-red`.  
+3. Prefer real failing tests in `backend/` (or frontend when present). The `work-orders/.force-red` stub is only for the pre-product scaffolding phase.  
 4. Unlock the red gate:
 
 ```bash
@@ -142,7 +142,7 @@ swamp workflow resume tdd-round --run <child-run-id>
 
 1. Paste the Agent B prompt into Cursor.  
 2. Change product code only enough to make **current** failures pass.  
-3. Before product apps exist: remove `work-orders/.force-red`.  
+3. Implement only enough for current failures. Do not use the `.force-red` stub once product suites exist.  
 4. Unlock the green gate:
 
 ```bash
