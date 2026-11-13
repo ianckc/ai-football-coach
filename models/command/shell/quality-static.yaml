@@ -1,0 +1,47 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: a10e4e51-6e38-40e0-8257-a104ea21be05
+name: quality-static
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 600000
+      run: |
+        set -euo pipefail
+        # shellcheck source=/dev/null
+        if [ -f factory.env ]; then set -a; . ./factory.env; set +a; fi
+        ran=0
+        if [ -f backend/Cargo.toml ]; then
+          ran=1
+          echo "=== quality-static: cargo fmt --check ==="
+          (cd backend && cargo fmt --all -- --check)
+          echo "=== quality-static: cargo clippy ==="
+          (cd backend && cargo clippy --locked --all-targets -- -D warnings)
+        else
+          echo "=== quality-static: backend not scaffolded yet (stub) ==="
+        fi
+        if [ -f frontend/package.json ]; then
+          ran=1
+          echo "=== quality-static: frontend lint/typecheck ==="
+          if jq -e '.scripts.lint' frontend/package.json >/dev/null 2>&1; then
+            (cd frontend && npm run lint)
+          else
+            echo "no lint script — skipping"
+          fi
+          if jq -e '.scripts.typecheck' frontend/package.json >/dev/null 2>&1; then
+            (cd frontend && npm run typecheck)
+          elif [ -f frontend/tsconfig.json ]; then
+            (cd frontend && npx tsc --noEmit)
+          else
+            echo "no typecheck — skipping"
+          fi
+        else
+          echo "=== quality-static: frontend not scaffolded yet (stub) ==="
+        fi
+        if [ "$ran" -eq 0 ]; then
+          echo "stub ok: static analysis will enforce when backend/ or frontend/ exists"
+        fi

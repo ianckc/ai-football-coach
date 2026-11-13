@@ -1,0 +1,234 @@
+id: cf6477da-2a95-408f-89e1-2b7ee9ffa866
+name: run-ticket
+description: >
+  Factory line for one GitHub Issue — check ready, mark in progress, chain up to five
+  tdd-round cycles (A→red→B→green→continue?), static analysis, Agent C review, then done.
+version: 1
+autoResume: false
+tags: {}
+inputs:
+  type: object
+  properties:
+    issue_ref:
+      type: string
+      description: GitHub issue ref (owner/repo#N, URL, or number with FACTORY_REPO set)
+    factory_item_id:
+      type: string
+      description: Optional GitHub Project item id for Status updates
+      default: ""
+  required:
+    - issue_ref
+  additionalProperties: false
+jobs:
+  - name: factory
+    description: Ready check, in-progress, then chained TDD rounds (max 5)
+    dependsOn: []
+    weight: 0
+    steps:
+      - name: check-ready
+        description: Ensure the GitHub issue is open (and Ready on the Project when configured)
+        weight: 0
+        allowFailure: false
+        dependsOn: []
+        task:
+          type: model_method
+          modelIdOrName: check-issue-ready
+          methodName: execute
+          inputs:
+            env:
+              ISSUE_REF: ${{ inputs.issue_ref }}
+
+      - name: fetch-work-order
+        description: Materialize issue body into work-orders/ for agent prompts
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: check-ready
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelIdOrName: fetch-issue
+          methodName: execute
+          inputs:
+            env:
+              ISSUE_REF: ${{ inputs.issue_ref }}
+
+      - name: mark-in-progress
+        description: Comment + optional Project Status → In Progress
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: fetch-work-order
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelIdOrName: mark-issue-in-progress
+          methodName: execute
+          inputs:
+            env:
+              ISSUE_REF: ${{ inputs.issue_ref }}
+              FACTORY_ITEM_ID: ${{ inputs.factory_item_id }}
+
+      - name: ping-pong-1
+        description: TDD round 1
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: mark-in-progress
+            condition:
+              type: succeeded
+        task:
+          type: workflow
+          workflowIdOrName: tdd-round
+          inputs:
+            issue_ref: ${{ inputs.issue_ref }}
+            round: 1
+
+      - name: ping-pong-2
+        description: TDD round 2 (skipped if round 1 signalled continue false)
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: ping-pong-1
+            condition:
+              type: completed
+        guard: '${{ data.latest("record-round-continue", "result").attributes.stdout != "true" }}'
+        task:
+          type: workflow
+          workflowIdOrName: tdd-round
+          inputs:
+            issue_ref: ${{ inputs.issue_ref }}
+            round: 2
+
+      - name: ping-pong-3
+        description: TDD round 3 (skipped if prior continue was false)
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: ping-pong-2
+            condition:
+              type: completed
+        guard: '${{ data.latest("record-round-continue", "result").attributes.stdout != "true" }}'
+        task:
+          type: workflow
+          workflowIdOrName: tdd-round
+          inputs:
+            issue_ref: ${{ inputs.issue_ref }}
+            round: 3
+
+      - name: ping-pong-4
+        description: TDD round 4 (skipped if prior continue was false)
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: ping-pong-3
+            condition:
+              type: completed
+        guard: '${{ data.latest("record-round-continue", "result").attributes.stdout != "true" }}'
+        task:
+          type: workflow
+          workflowIdOrName: tdd-round
+          inputs:
+            issue_ref: ${{ inputs.issue_ref }}
+            round: 4
+
+      - name: ping-pong-5
+        description: TDD round 5 (skipped if prior continue was false; hard cap)
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: ping-pong-4
+            condition:
+              type: completed
+        guard: '${{ data.latest("record-round-continue", "result").attributes.stdout != "true" }}'
+        task:
+          type: workflow
+          workflowIdOrName: tdd-round
+          inputs:
+            issue_ref: ${{ inputs.issue_ref }}
+            round: 5
+
+  - name: quality
+    description: Static analysis after TDD rounds
+    dependsOn:
+      - job: factory
+        condition:
+          type: succeeded
+    weight: 0
+    steps:
+      - name: run-static
+        description: Run static analysis gate
+        weight: 0
+        allowFailure: false
+        dependsOn: []
+        task:
+          type: model_method
+          modelIdOrName: quality-static
+          methodName: execute
+
+  - name: review
+    description: Agent C adversarial code review
+    dependsOn:
+      - job: quality
+        condition:
+          type: succeeded
+    weight: 0
+    steps:
+      - name: code-review
+        description: Agent C records findings; approve only when clear of critical/high
+        weight: 0
+        allowFailure: false
+        dependsOn: []
+        task:
+          type: manual_approval
+          prompt: >
+            Agent C (code review only) for ${{ inputs.issue_ref }}.
+            Follow AGENTS.md and agent-constraints/agent-c-review.md.
+            Review the change against the issue acceptance criteria.
+            Write findings to work-orders/findings-<slug>.md with severities
+            (critical|high|medium|low). Do NOT edit product code or tests.
+            If any critical/high findings remain, drive Agent B fixes first (or another
+            TDD round), re-run quality-tests + quality-static, then return here.
+            Approve this step ONLY when there are no unresolved critical or high findings.
+          timeout: 86400
+
+  - name: closeout
+    description: Bookkeeping and Project Status → Done
+    dependsOn:
+      - job: review
+        condition:
+          type: succeeded
+    weight: 0
+    steps:
+      - name: bookkeeping-reminder
+        description: Confirm docs/issue close-out after review
+        weight: 0
+        allowFailure: false
+        dependsOn: []
+        task:
+          type: manual_approval
+          prompt: >
+            Rounds + review complete for ${{ inputs.issue_ref }}.
+            Finish bookkeeping: update AGENTS.md if routes/surface changed,
+            append docs/loop-notes.md, ensure work-orders/.force-red is gone.
+            Approve when that is done (then factory marks the issue Done).
+          timeout: 86400
+
+      - name: mark-done
+        description: Comment + optional Project Status → Done
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: bookkeeping-reminder
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelIdOrName: mark-issue-done
+          methodName: execute
+          inputs:
+            env:
+              ISSUE_REF: ${{ inputs.issue_ref }}
+              FACTORY_ITEM_ID: ${{ inputs.factory_item_id }}

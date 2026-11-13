@@ -1,0 +1,163 @@
+id: f8dc9299-8f2d-474b-a683-c1d58d10038c
+name: tdd-round
+description: >
+  One TDD ping-pong round — Agent A failing tests (red), Agent B implement (green),
+  then continue? signal recorded for the parent loop.
+version: 1
+autoResume: false
+tags: {}
+inputs:
+  type: object
+  properties:
+    issue_ref:
+      type: string
+      description: GitHub issue ref (owner/repo#N, URL, or number with FACTORY_REPO)
+    round:
+      type: integer
+      description: Round number within the parent run-ticket loop
+      default: 1
+  required:
+    - issue_ref
+  additionalProperties: false
+jobs:
+  - name: round
+    description: One A→red→B→green→continue cycle
+    dependsOn: []
+    weight: 0
+    steps:
+      - name: write-failing-tests
+        description: Agent A adds failing tests only for one acceptance slice
+        weight: 0
+        allowFailure: false
+        dependsOn: []
+        task:
+          type: manual_approval
+          prompt: >
+            Agent A (tests only) for ${{ inputs.issue_ref }} — round ${{ inputs.round }}.
+            Follow AGENTS.md and agent-constraints/agent-a-tests.md.
+            Encode ONLY the next uncovered acceptance slice as tests (one slice).
+            Do NOT edit product implementation or do bookkeeping.
+            Leave the test suite red for the right reason.
+            Until backend/frontend exist: create work-orders/.force-red after adding the failing
+            test stub/checklist so the red gate fails.
+            If the suite is already green, do not approve — tell the operator to signal continue:false.
+            Approve this step only when the suite is red, to run the red gate.
+          timeout: 86400
+
+      - name: run-red-gate
+        description: Run quality-tests — expected to fail after Agent A
+        weight: 0
+        allowFailure: true
+        dependsOn:
+          - step: write-failing-tests
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelIdOrName: quality-tests
+          methodName: execute
+
+      - name: assert-red
+        description: Require quality-tests exit code non-zero (suite is red)
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: run-red-gate
+            condition:
+              type: completed
+        task:
+          type: assert
+          severity: high
+          message: expected quality-tests to fail after Agent A (tests-only) stage
+          expr: >-
+            int(data.latest("quality-tests", "result").attributes.exitCode) != 0
+
+      - name: implement-to-green
+        description: Agent B implements only enough to make tests pass
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: assert-red
+            condition:
+              type: succeeded
+        task:
+          type: manual_approval
+          prompt: >
+            Agent B (implement only) for ${{ inputs.issue_ref }} — round ${{ inputs.round }}.
+            Follow AGENTS.md and agent-constraints/agent-b-implement.md.
+            Change product code ONLY enough to make the currently failing tests pass.
+            Do NOT anticipate later acceptance criteria. Do NOT rewrite tests unless a test
+            clearly contradicts the ticket (say why). Do NOT do bookkeeping this round.
+            Until backend/frontend exist: remove work-orders/.force-red when the slice is "done"
+            so the green gate can pass.
+            When the suite is green locally, approve this step to run the green gate.
+          timeout: 86400
+
+      - name: run-green-gate
+        description: Run quality-tests — must pass after Agent B
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: implement-to-green
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelIdOrName: quality-tests
+          methodName: execute
+
+      - name: assert-green
+        description: Require quality-tests exit code 0
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: run-green-gate
+            condition:
+              type: succeeded
+        task:
+          type: assert
+          severity: high
+          message: quality-tests green gate did not exit 0
+          expr: >-
+            int(data.latest("quality-tests", "result").attributes.exitCode) == 0
+
+      - name: more-rounds
+        description: Ask whether another A→B round is needed
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: assert-green
+            condition:
+              type: succeeded
+        task:
+          type: wait_for_signal
+          timeout: 86400
+          key: tdd-more-rounds
+          acceptEarly: 3600
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - continue
+            properties:
+              continue:
+                type: boolean
+                description: >
+                  true = next unchecked criterion would fail tests today (another A→B round);
+                  false = acceptance covered or already green — stop looping
+
+      - name: record-continue
+        description: Persist continue decision for parent guards
+        weight: 0
+        allowFailure: false
+        dependsOn:
+          - step: more-rounds
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelIdOrName: record-round-continue
+          methodName: execute
+          inputs:
+            env:
+              CONTINUE: '${{ steps["more-rounds"].outputs.payload.continue ? "true" : "false" }}'

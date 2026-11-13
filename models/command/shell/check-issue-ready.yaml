@@ -1,0 +1,72 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: ab4ba8e3-f691-4121-b899-a4a865921edb
+name: check-issue-ready
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 120000
+      run: |
+        set -euo pipefail
+        # shellcheck source=/dev/null
+        if [ -f factory.env ]; then set -a; . ./factory.env; set +a; fi
+        if [ -z "${ISSUE_REF:-}" ]; then
+          echo "ISSUE_REF env is required" >&2
+          exit 1
+        fi
+        if ! command -v gh >/dev/null || ! command -v jq >/dev/null; then
+          echo "gh and jq are required" >&2
+          exit 1
+        fi
+        ref="$ISSUE_REF"
+        if echo "$ref" | grep -qE '^https?://github.com/'; then
+          owner="$(echo "$ref" | sed -E 's#https?://github.com/([^/]+)/([^/#]+).*#\1#')"
+          repo="$(echo "$ref" | sed -E 's#https?://github.com/([^/]+)/([^/#]+).*#\2#')"
+          number="$(echo "$ref" | sed -E 's#.*/issues/([0-9]+).*#\1#')"
+        elif echo "$ref" | grep -qE '^[^/]+/[^#]+#[0-9]+$'; then
+          owner="$(echo "$ref" | cut -d/ -f1)"
+          repo="$(echo "$ref" | cut -d/ -f2 | cut -d# -f1)"
+          number="$(echo "$ref" | cut -d# -f2)"
+        elif echo "$ref" | grep -qE '^[0-9]+$'; then
+          if [ -z "${FACTORY_REPO:-}" ]; then
+            echo "Numeric ISSUE_REF requires FACTORY_REPO=owner/repo" >&2
+            exit 1
+          fi
+          owner="$(echo "$FACTORY_REPO" | cut -d/ -f1)"
+          repo="$(echo "$FACTORY_REPO" | cut -d/ -f2)"
+          number="$ref"
+        else
+          echo "Unrecognized ISSUE_REF: $ref" >&2
+          exit 1
+        fi
+        state="$(gh issue view "$number" --repo "$owner/$repo" --json state -q .state)"
+        if [ "$state" != "OPEN" ]; then
+          echo "Issue ${owner}/${repo}#${number} is not OPEN (state=$state)" >&2
+          exit 1
+        fi
+        # Optional: confirm Status on the Project board is Ready
+        OWNER="${FACTORY_PROJECT_OWNER:-}"
+        NUMBER="${FACTORY_PROJECT_NUMBER:-}"
+        READY="${FACTORY_STATUS_READY:-Ready}"
+        if [ -n "$OWNER" ] && [ -n "$NUMBER" ]; then
+          url="https://github.com/${owner}/${repo}/issues/${number}"
+          match="$(gh project item-list "$NUMBER" --owner "$OWNER" --format json --limit 100 \
+            | jq -r --arg url "$url" --arg ready "$READY" '
+                .items[]
+                | select((.content.url // "") == $url)
+                | "\(.status // .["Status"] // "")\t\(.id)"' | head -n1 || true)"
+          if [ -z "$match" ]; then
+            echo "Warning: issue not found on project $OWNER/$NUMBER — continuing (open issue check passed)" >&2
+          else
+            status="$(echo "$match" | cut -f1)"
+            if [ "$status" != "$READY" ]; then
+              echo "Issue is on the project but Status='$status' (want '$READY')" >&2
+              exit 1
+            fi
+          fi
+        fi
+        echo "ok: ${owner}/${repo}#${number} is open and ready for the factory"

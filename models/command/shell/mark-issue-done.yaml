@@ -1,0 +1,49 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 2eab4709-0cb4-4123-96f2-2b48c06f8ea4
+name: mark-issue-done
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 120000
+      run: |
+        set -euo pipefail
+        # shellcheck source=/dev/null
+        if [ -f factory.env ]; then set -a; . ./factory.env; set +a; fi
+        if [ -z "${ISSUE_REF:-}" ]; then
+          echo "ISSUE_REF env is required" >&2
+          exit 1
+        fi
+        ref="$ISSUE_REF"
+        if echo "$ref" | grep -qE '^https?://github.com/'; then
+          owner="$(echo "$ref" | sed -E 's#https?://github.com/([^/]+)/([^/#]+).*#\1#')"
+          repo="$(echo "$ref" | sed -E 's#https?://github.com/([^/]+)/([^/#]+).*#\2#')"
+          number="$(echo "$ref" | sed -E 's#.*/issues/([0-9]+).*#\1#')"
+        elif echo "$ref" | grep -qE '^[^/]+/[^#]+#[0-9]+$'; then
+          owner="$(echo "$ref" | cut -d/ -f1)"
+          repo="$(echo "$ref" | cut -d/ -f2 | cut -d# -f1)"
+          number="$(echo "$ref" | cut -d# -f2)"
+        elif echo "$ref" | grep -qE '^[0-9]+$'; then
+          owner="$(echo "${FACTORY_REPO:?}" | cut -d/ -f1)"
+          repo="$(echo "$FACTORY_REPO" | cut -d/ -f2)"
+          number="$ref"
+        else
+          echo "Unrecognized ISSUE_REF: $ref" >&2
+          exit 1
+        fi
+        note="${FACTORY_DONE_NOTE:-Factory line finished: tests green, static analysis passed, review clear.}"
+        gh issue comment "$number" --repo "$owner/$repo" --body "🏭 Factory: done — $note"
+        if [ -n "${FACTORY_PROJECT_ID:-}" ] && [ -n "${FACTORY_STATUS_FIELD_ID:-}" ] && [ -n "${FACTORY_STATUS_DONE_OPTION_ID:-}" ] && [ -n "${FACTORY_ITEM_ID:-}" ]; then
+          gh project item-edit \
+            --id "$FACTORY_ITEM_ID" \
+            --project-id "$FACTORY_PROJECT_ID" \
+            --field-id "$FACTORY_STATUS_FIELD_ID" \
+            --single-select-option-id "$FACTORY_STATUS_DONE_OPTION_ID"
+          echo "Updated project Status to Done"
+        else
+          echo "Commented only — set FACTORY_* option IDs + FACTORY_ITEM_ID to move the board column"
+        fi
