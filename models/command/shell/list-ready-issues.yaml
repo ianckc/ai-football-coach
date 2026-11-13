@@ -31,7 +31,8 @@ methods:
         fi
         echo "Ready issues on project $OWNER/$NUMBER (Status=$READY):"
         items="$(gh project item-list "$NUMBER" --owner "$OWNER" --format json --limit 100)"
-        count="$(echo "$items" | jq --arg ready "$READY" '
+        # Use printf — macOS echo expands \n inside JSON strings and breaks jq.
+        count="$(printf '%s' "$items" | jq --arg ready "$READY" '
           [.items[]
             | select(.content != null)
             | select(.content.type == "Issue" or (.content.url // "" | test("/issues/")))
@@ -41,7 +42,7 @@ methods:
           echo "  (none)"
           exit 0
         fi
-        echo "$items" | jq -r --arg ready "$READY" '
+        printf '%s' "$items" | jq -r --arg ready "$READY" '
           .items[]
           | select(.content != null)
           | select(.content.type == "Issue" or (.content.url // "" | test("/issues/")))
