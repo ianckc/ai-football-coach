@@ -14,7 +14,8 @@ For each issue the factory:
 2. Runs up to five **TDD rounds**: Agent A writes failing tests → red gate → Agent B implements → green gate
 3. Runs **static analysis**
 4. Pauses for **Agent C** (code review only)
-5. Bookkeeping, then marks the issue **Done**
+5. Optional **docs update** pause (approve with no edits if not needed)
+6. Bookkeeping, then marks the issue **Done**
 
 | Agent | Job | Must not |
 |-------|-----|----------|
@@ -123,7 +124,7 @@ swamp workflow approvals
 
 - Copy the approval **prompt** into a Cursor chat  
 - Note the **child** `tdd-round` run id for A/B gates  
-- Review and bookkeeping use the **parent** `run-ticket` run id  
+- Review, optional docs, and bookkeeping use the **parent** `run-ticket` run id  
 
 ### 4. Agent A — failing tests
 
@@ -177,7 +178,19 @@ swamp workflow approve run-ticket code-review --run <parent-run-id>
 swamp workflow resume run-ticket --run <parent-run-id>
 ```
 
-### 8. Bookkeeping → Done
+### 8. Optional docs update
+
+Approvals show `update-docs` on the **parent**.
+
+1. If the change affects user-facing behavior, APIs, setup, or factory operator steps, update pages under `docs/docs/` (and README if needed).  
+2. If no docs change is required, approve with no edits — the pause is required; the work is optional.
+
+```bash
+swamp workflow approve run-ticket update-docs --run <parent-run-id>
+swamp workflow resume run-ticket --run <parent-run-id>
+```
+
+### 9. Bookkeeping → Done
 
 ```bash
 swamp workflow approve run-ticket bookkeeping-reminder --run <parent-run-id>
@@ -206,8 +219,10 @@ swamp workflow signal --workflow tdd-round --key tdd-more-rounds --payload '{"co
 swamp workflow resume tdd-round --run <child>
 swamp workflow resume run-ticket --run <parent>
 
-# Parent (review + close)
+# Parent (review + docs + close)
 swamp workflow approve run-ticket code-review --run <parent>
+swamp workflow resume run-ticket --run <parent>
+swamp workflow approve run-ticket update-docs --run <parent>
 swamp workflow resume run-ticket --run <parent>
 swamp workflow approve run-ticket bookkeeping-reminder --run <parent>
 swamp workflow resume run-ticket --run <parent>

@@ -31,7 +31,7 @@ Ownership is enforced by this contract and kickoff prompts — not by filesystem
 3. **Agent A** does not implement. **Agent B** does not write tests (except the documented contradiction exception). **Agent C** does not change code.
 4. **Red mid-round is expected** after A. **Green before review/closeout** after B.
 5. **Quality gates are mechanical:** `quality-tests` (red/green) and `quality-static` (after rounds). Do not skip them.
-6. When finished: bookkeeping pause → factory comments on the issue and moves Project Status to Done when configured.
+6. When finished: optional **update-docs** pause (skip with no edits if not needed) → bookkeeping → factory comments on the issue and moves Project Status to Done when configured.
 
 ## Agent control panel
 

@@ -9,7 +9,7 @@ That page covers:
 - Prerequisites and `factory.env`
 - Listing Ready issues
 - Running `run-ticket` / `tdd-round`
-- Agent A → B → continue → static → Agent C → Done
+- Agent A → B → continue → static → Agent C → optional docs → Done
 - Example commands and a cheat sheet
 
 Repo contract: [`../AGENTS.md`](../AGENTS.md).
