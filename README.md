@@ -19,7 +19,7 @@ swamp workflow run run-ticket --input issue_ref='owner/repo#123'
 swamp workflow approvals             # paste prompt into Cursor, then approve/resume
 ```
 
-Full operator guide: [`docs/factory-howto.md`](docs/factory-howto.md). Agent contract: [`AGENTS.md`](AGENTS.md).
+Full guide (docs site): [`docs/docs/software-factory.mdx`](docs/docs/software-factory.mdx) — run `cd docs && npm start` and open **Software factory**. Agent contract: [`AGENTS.md`](AGENTS.md).
 
 Product apps (`backend/` Rust, `frontend/` TanStack) come next; until then red/green uses the `work-orders/.force-red` stub described in `AGENTS.md`.
 
