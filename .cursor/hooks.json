@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": "swamp audit record --from-hook --tool cursor"
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "swamp audit record --from-hook --tool cursor"
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 5cc2a28c-8a66-477a-8aa2-145f6244df9c
+name: record-round-continue
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 60000
+      run: |
+        set -euo pipefail
+        if [ -z "${CONTINUE:-}" ]; then
+          echo "CONTINUE env is required (true|false)" >&2
+          exit 1
+        fi
+        case "$CONTINUE" in
+          true|false) ;;
+          *)
+            echo "CONTINUE must be true or false, got: $CONTINUE" >&2
+            exit 1
+            ;;
+        esac
+        # stdout is the durable decision for parent continue guards (no trailing newline)
+        printf '%s' "$CONTINUE"

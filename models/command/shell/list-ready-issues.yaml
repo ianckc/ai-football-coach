@@ -1,0 +1,49 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: dd6f769d-4f85-467c-97ef-26449dae80ac
+name: list-ready-issues
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 120000
+      run: |
+        set -euo pipefail
+        # shellcheck source=/dev/null
+        if [ -f factory.env ]; then set -a; . ./factory.env; set +a; fi
+        OWNER="${FACTORY_PROJECT_OWNER:-}"
+        NUMBER="${FACTORY_PROJECT_NUMBER:-}"
+        READY="${FACTORY_STATUS_READY:-Ready}"
+        if [ -z "$OWNER" ] || [ -z "$NUMBER" ]; then
+          echo "Set FACTORY_PROJECT_OWNER and FACTORY_PROJECT_NUMBER (see factory.env.example)" >&2
+          exit 1
+        fi
+        if ! command -v gh >/dev/null; then
+          echo "gh CLI is required" >&2
+          exit 1
+        fi
+        if ! command -v jq >/dev/null; then
+          echo "jq is required" >&2
+          exit 1
+        fi
+        echo "Ready issues on project $OWNER/$NUMBER (Status=$READY):"
+        items="$(gh project item-list "$NUMBER" --owner "$OWNER" --format json --limit 100)"
+        count="$(echo "$items" | jq --arg ready "$READY" '
+          [.items[]
+            | select(.content != null)
+            | select(.content.type == "Issue" or (.content.url // "" | test("/issues/")))
+            | select((.status // .["Status"] // "") == $ready)
+          ] | length')"
+        if [ "$count" = "0" ]; then
+          echo "  (none)"
+          exit 0
+        fi
+        echo "$items" | jq -r --arg ready "$READY" '
+          .items[]
+          | select(.content != null)
+          | select(.content.type == "Issue" or (.content.url // "" | test("/issues/")))
+          | select((.status // .["Status"] // "") == $ready)
+          | "  - #\(.content.number // "?") \(.content.title // "(no title)")\n    \(.content.url // "")\n    itemId=\(.id)"'

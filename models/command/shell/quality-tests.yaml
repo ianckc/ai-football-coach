@@ -1,0 +1,54 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: 4a0f8e17-f073-49ff-a165-2c0da4595918
+name: quality-tests
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 600000
+      ignoreExitCode: true
+      run: |
+        set -uo pipefail
+        # shellcheck source=/dev/null
+        if [ -f factory.env ]; then set -a; . ./factory.env; set +a; fi
+        # Prefer real product suites when present; otherwise stub for factory dry-runs.
+        # Exit code is the gate signal (non-zero = red / failed).
+        if [ -f backend/Cargo.toml ]; then
+          echo "=== quality-tests: cargo test (backend) ==="
+          (cd backend && cargo test --locked)
+          backend_rc=$?
+        else
+          echo "=== quality-tests: backend not scaffolded yet (stub) ==="
+          backend_rc=0
+        fi
+        if [ -f frontend/package.json ]; then
+          echo "=== quality-tests: frontend test ==="
+          if jq -e '.scripts.test' frontend/package.json >/dev/null 2>&1; then
+            (cd frontend && npm test -- --run)
+            frontend_rc=$?
+          else
+            echo "frontend/package.json has no test script — skipping"
+            frontend_rc=0
+          fi
+        else
+          echo "=== quality-tests: frontend not scaffolded yet (stub) ==="
+          frontend_rc=0
+        fi
+        if [ ! -f backend/Cargo.toml ] && [ ! -f frontend/package.json ]; then
+          # Factory scaffolding phase: no product yet.
+          # Agent A can force red by creating work-orders/.force-red
+          if [ -f work-orders/.force-red ]; then
+            echo "stub red: work-orders/.force-red present"
+            exit 1
+          fi
+          echo "stub green: no product dirs; remove work-orders/.force-red for green"
+          exit 0
+        fi
+        if [ "$backend_rc" -ne 0 ] || [ "$frontend_rc" -ne 0 ]; then
+          exit 1
+        fi
+        exit 0

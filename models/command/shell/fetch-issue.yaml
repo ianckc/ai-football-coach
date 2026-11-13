@@ -1,0 +1,68 @@
+type: command/shell
+typeVersion: 2026.02.09.1
+id: db3df135-9a39-4b27-80e5-11f37d34a51d
+name: fetch-issue
+version: 1
+tags: {}
+globalArguments: {}
+methods:
+  execute:
+    arguments:
+      workingDir: .
+      timeout: 120000
+      run: |
+        set -euo pipefail
+        # shellcheck source=/dev/null
+        if [ -f factory.env ]; then set -a; . ./factory.env; set +a; fi
+        if [ -z "${ISSUE_REF:-}" ]; then
+          echo "ISSUE_REF env is required (e.g. owner/repo#123 or https://github.com/owner/repo/issues/123)" >&2
+          exit 1
+        fi
+        if ! command -v gh >/dev/null; then
+          echo "gh CLI is required" >&2
+          exit 1
+        fi
+        mkdir -p work-orders
+        # Normalize ISSUE_REF into owner/repo and number
+        ref="$ISSUE_REF"
+        if echo "$ref" | grep -qE '^https?://github.com/'; then
+          owner="$(echo "$ref" | sed -E 's#https?://github.com/([^/]+)/([^/#]+).*#\1#')"
+          repo="$(echo "$ref" | sed -E 's#https?://github.com/([^/]+)/([^/#]+).*#\2#')"
+          number="$(echo "$ref" | sed -E 's#.*/issues/([0-9]+).*#\1#')"
+        elif echo "$ref" | grep -qE '^[^/]+/[^#]+#[0-9]+$'; then
+          owner="$(echo "$ref" | cut -d/ -f1)"
+          repo="$(echo "$ref" | cut -d/ -f2 | cut -d# -f1)"
+          number="$(echo "$ref" | cut -d# -f2)"
+        elif echo "$ref" | grep -qE '^[0-9]+$'; then
+          if [ -z "${FACTORY_REPO:-}" ]; then
+            echo "Numeric ISSUE_REF requires FACTORY_REPO=owner/repo" >&2
+            exit 1
+          fi
+          owner="$(echo "$FACTORY_REPO" | cut -d/ -f1)"
+          repo="$(echo "$FACTORY_REPO" | cut -d/ -f2)"
+          number="$ref"
+        else
+          echo "Unrecognized ISSUE_REF: $ref" >&2
+          exit 1
+        fi
+        out="work-orders/${owner}-${repo}-${number}.md"
+        body="$(gh issue view "$number" --repo "$owner/$repo" --json title,body,url,state,labels,number)"
+        title="$(echo "$body" | jq -r .title)"
+        state="$(echo "$body" | jq -r .state)"
+        url="$(echo "$body" | jq -r .url)"
+        issue_body="$(echo "$body" | jq -r '.body // ""')"
+        {
+          echo "# Issue ${owner}/${repo}#${number}"
+          echo
+          echo "Title: $title"
+          echo "State: $state"
+          echo "URL: $url"
+          echo "Fetched: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo
+          echo "## Body"
+          echo
+          echo "$issue_body"
+        } > "$out"
+        echo "Wrote $out"
+        echo "ISSUE_URL=$url"
+        echo "WORK_ORDER=$out"

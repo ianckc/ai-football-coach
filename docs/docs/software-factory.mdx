@@ -1,0 +1,245 @@
+---
+sidebar_position: 2
+---
+
+# Software factory
+
+This project ships with a **Swamp Club TDD software factory**. Swamp runs the production line (gates and pauses). You paste prompts into Cursor when a gate is waiting. Work comes from **GitHub Issues** on a **GitHub Project** board.
+
+## What it does
+
+For each issue the factory:
+
+1. Checks the issue is open (and **Ready** on the Project when configured)
+2. Runs up to five **TDD rounds**: Agent A writes failing tests → red gate → Agent B implements → green gate
+3. Runs **static analysis**
+4. Pauses for **Agent C** (code review only)
+5. Optional **docs update** pause (approve with no edits if not needed)
+6. Bookkeeping, then marks the issue **Done**
+
+| Agent | Job | Must not |
+|-------|-----|----------|
+| **A** | Tests only (one acceptance slice) | Implement product code |
+| **B** | Implement only enough to go green | Anticipate later slices; rewrite tests |
+| **C** | Review only; write findings | Change code or tests |
+
+## Setup
+
+Run these from the **repository root** (not `docs/`).
+
+### 1. Install tools
+
+- [Swamp](https://swamp-club.com) CLI
+- [GitHub CLI](https://cli.github.com/) (`gh`)
+- `jq`
+
+### 2. Sign in
+
+```bash
+swamp auth login
+gh auth login
+# If gh already has a stale token:
+gh auth refresh -h github.com
+```
+
+Confirm:
+
+```bash
+swamp auth whoami --json
+gh auth status
+```
+
+### 3. Configure the GitHub Project
+
+On your Project board, use Status values (or rename them in config):
+
+- **Ready** — factory may pick the issue up  
+- **In Progress** — factory has started  
+- **Done** — factory finished  
+
+Copy the example env file and edit it:
+
+```bash
+cp factory.env.example factory.env
+```
+
+Minimum settings in `factory.env`:
+
+```bash
+FACTORY_PROJECT_OWNER=your-org-or-user
+FACTORY_PROJECT_NUMBER=1
+FACTORY_REPO=your-org/ai-football-coach
+
+FACTORY_STATUS_READY=Ready
+FACTORY_STATUS_IN_PROGRESS=In Progress
+FACTORY_STATUS_DONE=Done
+```
+
+Optional: set `FACTORY_PROJECT_ID`, status field/option IDs, and pass `factory_item_id` when starting a run so the factory can move board columns automatically (see comments in `factory.env.example`).
+
+### 4. Smoke-check the control panel
+
+```bash
+swamp behavior run show-agents-contract execute
+swamp behavior run quality-tests execute
+swamp behavior run quality-static execute
+swamp behavior run list-ready-issues execute
+```
+
+Until `backend/` and `frontend/` exist, the quality commands use stubs. That is expected.
+
+## Use the factory
+
+### 0. Put an issue on Ready
+
+Create a GitHub Issue with clear acceptance criteria, add it to the Project, set Status to **Ready**.
+
+### 1. List ready work
+
+```bash
+swamp behavior run list-ready-issues execute
+```
+
+### 2. Start a ticket
+
+```bash
+swamp workflow run run-ticket --input issue_ref='owner/repo#123'
+```
+
+Optional Project item id (for Status updates):
+
+```bash
+swamp workflow run run-ticket \
+  --input issue_ref='owner/repo#123' \
+  --input factory_item_id='PVTI_…'
+```
+
+**Save the parent run id** from the command output.
+
+### 3. See what is waiting
+
+```bash
+swamp workflow approvals
+```
+
+- Copy the approval **prompt** into a Cursor chat  
+- Note the **child** `tdd-round` run id for A/B gates  
+- Review, optional docs, and bookkeeping use the **parent** `run-ticket` run id  
+
+### 4. Agent A — failing tests
+
+1. Paste the Agent A prompt into Cursor.  
+2. Encode **one** acceptance slice as tests. Leave the suite **red**.  
+3. Before product apps exist: create `work-orders/.force-red`.  
+4. Unlock the red gate:
+
+```bash
+swamp workflow approve tdd-round write-failing-tests --run <child-run-id>
+swamp workflow resume tdd-round --run <child-run-id>
+```
+
+### 5. Agent B — implement
+
+1. Paste the Agent B prompt into Cursor.  
+2. Change product code only enough to make **current** failures pass.  
+3. Before product apps exist: remove `work-orders/.force-red`.  
+4. Unlock the green gate:
+
+```bash
+swamp workflow approve tdd-round implement-to-green --run <child-run-id>
+swamp workflow resume tdd-round --run <child-run-id>
+```
+
+### 6. Another round or stop?
+
+```bash
+# More acceptance criteria left that would fail today:
+swamp workflow signal --workflow tdd-round --key tdd-more-rounds \
+  --payload '{"continue":true}'
+
+# Acceptance covered (or already green):
+swamp workflow signal --workflow tdd-round --key tdd-more-rounds \
+  --payload '{"continue":false}'
+
+swamp workflow resume tdd-round --run <child-run-id>
+swamp workflow resume run-ticket --run <parent-run-id>
+```
+
+### 7. Agent C — code review
+
+Static analysis runs after rounds stop. Then approvals show `code-review` on the **parent**.
+
+1. Paste the Agent C prompt into Cursor.  
+2. Write findings under `work-orders/` (no code changes).  
+3. Approve only when there are no unresolved **critical** / **high** findings:
+
+```bash
+swamp workflow approve run-ticket code-review --run <parent-run-id>
+swamp workflow resume run-ticket --run <parent-run-id>
+```
+
+### 8. Optional docs update
+
+Approvals show `update-docs` on the **parent**.
+
+1. If the change affects user-facing behavior, APIs, setup, or factory operator steps, update pages under `docs/docs/` (and README if needed).  
+2. If no docs change is required, approve with no edits — the pause is required; the work is optional.
+
+```bash
+swamp workflow approve run-ticket update-docs --run <parent-run-id>
+swamp workflow resume run-ticket --run <parent-run-id>
+```
+
+### 9. Bookkeeping → Done
+
+```bash
+swamp workflow approve run-ticket bookkeeping-reminder --run <parent-run-id>
+swamp workflow resume run-ticket --run <parent-run-id>
+```
+
+## Cheat sheet
+
+```bash
+# Contract + ready queue
+swamp behavior run show-agents-contract execute
+swamp behavior run list-ready-issues execute
+
+# Start
+swamp workflow run run-ticket --input issue_ref='owner/repo#123'
+
+# Each pause
+swamp workflow approvals
+
+# Child (A/B)
+swamp workflow approve tdd-round write-failing-tests --run <child>
+swamp workflow resume tdd-round --run <child>
+swamp workflow approve tdd-round implement-to-green --run <child>
+swamp workflow resume tdd-round --run <child>
+swamp workflow signal --workflow tdd-round --key tdd-more-rounds --payload '{"continue":false}'
+swamp workflow resume tdd-round --run <child>
+swamp workflow resume run-ticket --run <parent>
+
+# Parent (review + docs + close)
+swamp workflow approve run-ticket code-review --run <parent>
+swamp workflow resume run-ticket --run <parent>
+swamp workflow approve run-ticket update-docs --run <parent>
+swamp workflow resume run-ticket --run <parent>
+swamp workflow approve run-ticket bookkeeping-reminder --run <parent>
+swamp workflow resume run-ticket --run <parent>
+```
+
+## Where things live
+
+| What | Path |
+|------|------|
+| Agent contract | `AGENTS.md` at the repository root |
+| Role constraints | `agent-constraints/` |
+| Workflows | `workflows/workflow-tdd-round.yaml`, `workflows/workflow-run-ticket.yaml` |
+| Behaviors | `models/command/shell/` |
+| Local config | `factory.env` (from `factory.env.example`) |
+| Work orders / findings | `work-orders/` |
+| Loop notes | `docs/loop-notes.md` (repo root `docs/` folder, not this site page) |
+
+:::tip
+Always **code in Cursor first**, then **approve / resume** in the terminal. Approving before the agent finishes runs the gate against unfinished work.
+:::
