@@ -6,7 +6,7 @@ The [Docusaurus](https://docusaurus.io/) docs site lives in the [`docs/`](docs/)
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 20 or newer
+- [Node.js](https://nodejs.org/) 26 (see [`docs/.nvmrc`](docs/.nvmrc))
 
 ## Installation
 
