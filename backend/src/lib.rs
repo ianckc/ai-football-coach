@@ -1,6 +1,6 @@
-use axum::Router;
+use axum::{routing::get, Router};
 
 /// Application router. Routes are added as acceptance slices land.
 pub fn app() -> Router {
-    Router::new()
+    Router::new().route("/health", get(|| async {}))
 }
