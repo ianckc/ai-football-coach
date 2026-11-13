@@ -158,10 +158,7 @@ async fn accounts_post_returns_201_with_id_and_email() {
         .get("id")
         .and_then(|v| v.as_str())
         .expect("success body must include id as a string");
-    assert!(
-        is_uuid_v4(id),
-        "id must be a UUID v4 string, got {id:?}"
-    );
+    assert!(is_uuid_v4(id), "id must be a UUID v4 string, got {id:?}");
     assert!(
         !obj.contains_key("password"),
         "success body must never return the password"
@@ -173,8 +170,14 @@ async fn accounts_post_returns_201_with_id_and_email() {
 async fn accounts_post_rejects_missing_or_invalid_email_or_password() {
     let cases = [
         (r#"{"email":"","password":"secret123"}"#, "empty email"),
-        (r#"{"email":"not-an-email","password":"secret123"}"#, "invalid email"),
-        (r#"{"email":"coach@example.com","password":""}"#, "empty password"),
+        (
+            r#"{"email":"not-an-email","password":"secret123"}"#,
+            "invalid email",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":""}"#,
+            "empty password",
+        ),
         (r#"{"email":"coach@example.com"}"#, "missing password"),
         (r#"{"password":"secret123"}"#, "missing email"),
     ];
