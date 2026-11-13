@@ -92,6 +92,10 @@ const config: Config = {
               label: 'Introduction',
               to: '/docs/intro',
             },
+            {
+              label: 'Backend API',
+              to: '/docs/backend-api',
+            },
           ],
         },
         {

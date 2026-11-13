@@ -21,7 +21,7 @@ swamp workflow approvals             # paste prompt into Cursor, then approve/re
 
 Full guide (docs site): [`docs/docs/software-factory.mdx`](docs/docs/software-factory.mdx) — run `cd docs && npm start` and open **Software factory**. Agent contract: [`AGENTS.md`](AGENTS.md).
 
-Product apps (`backend/` Rust, `frontend/` TanStack) come next; until then red/green uses the `work-orders/.force-red` stub described in `AGENTS.md`.
+Product apps: `backend/` (Rust/Axum) is in progress; `frontend/` (TanStack) is not scaffolded yet. API reference: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx) (also **Backend API** on the docs site).
 
 ## Docs site
 
