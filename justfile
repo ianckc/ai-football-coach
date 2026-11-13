@@ -83,11 +83,11 @@ ticket-create title body="" status=env_var_or_default("STATUS", "Ready"):
         '- [ ] …')"
     fi
 
-    echo "Creating issue in $REPO…"
+    echo "Creating issue in ${REPO}…"
     url="$(gh issue create --repo "$REPO" --title "$title" --body "$issue_body")"
     echo "  $url"
 
-    echo "Adding to project $OWNER/$NUMBER…"
+    echo "Adding to project $OWNER/${NUMBER}…"
     item_json="$(gh project item-add "$NUMBER" --owner "$OWNER" --url "$url" --format json)"
     item_id="$(printf '%s' "$item_json" | jq -r '.id')"
     echo "  itemId=$item_id"
@@ -180,7 +180,7 @@ ticket-start number:
     command -v gh >/dev/null || { echo "gh CLI is required" >&2; exit 1; }
     command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 
-    echo "Fetching issue #$number from $REPO…"
+    echo "Fetching issue #$number from ${REPO}…"
     issue_json="$(gh issue view "$number" --repo "$REPO" --json title,url,state)"
     title="$(printf '%s' "$issue_json" | jq -r .title)"
     url="$(printf '%s' "$issue_json" | jq -r .url)"
@@ -212,10 +212,10 @@ ticket-start number:
     git checkout main
     git pull origin main
 
-    echo "Creating branch $branch…"
+    echo "Creating branch ${branch}…"
     git checkout -b "$branch"
 
-    echo "Updating project Status → $IN_PROGRESS…"
+    echo "Updating project Status → ${IN_PROGRESS}…"
     items="$(gh project item-list "$PROJECT_NUMBER" --owner "$OWNER" --format json --limit 100)"
     item_id="$(printf '%s' "$items" | jq -r --argjson num "$number" '
       .items[]
