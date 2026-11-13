@@ -212,3 +212,59 @@ async fn accounts_post_rejects_missing_or_invalid_email_or_password() {
         );
     }
 }
+
+/// Acceptance slice: Reject a duplicate email with `409` and a JSON error body.
+#[tokio::test]
+async fn accounts_post_rejects_duplicate_email() {
+    let app = app();
+    let body = r#"{"email":"duplicate@example.com","password":"secret123"}"#;
+
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        first.status(),
+        StatusCode::CREATED,
+        "first POST /accounts with a new email must succeed"
+    );
+
+    let second = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        second.status(),
+        StatusCode::CONFLICT,
+        "POST /accounts must return 409 for a duplicate email"
+    );
+
+    let bytes = second
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&bytes).expect("POST /accounts must return a JSON error body");
+    assert!(
+        json.is_object(),
+        "POST /accounts duplicate-email error body must be a JSON object"
+    );
+}
