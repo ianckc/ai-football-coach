@@ -5,7 +5,7 @@ use argon2::{
 use axum::{
     Json, Router,
     extract::State,
-    http::StatusCode,
+    http::{HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
 };
@@ -15,6 +15,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -120,6 +121,17 @@ async fn create_account(
         .into_response()
 }
 
+/// Local frontend origins (Vite on port 3000).
+fn local_dev_cors() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin([
+            HeaderValue::from_static("http://localhost:3000"),
+            HeaderValue::from_static("http://127.0.0.1:3000"),
+        ])
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::ACCEPT])
+}
+
 /// Application router. Routes are added as acceptance slices land.
 pub fn app() -> Router {
     let state = AppState {
@@ -129,5 +141,6 @@ pub fn app() -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/accounts", post(create_account))
+        .layer(local_dev_cors())
         .with_state(state)
 }

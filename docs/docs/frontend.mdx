@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Frontend
 
-The TanStack Start app in `frontend/` is the web UI for coaches. It is a TypeScript Vite app with file-based routing. Today it serves a minimal root page that identifies the product; auth, API calls, and domain features are not wired yet.
+The TanStack Start app in `frontend/` is the web UI for coaches. It is a TypeScript Vite app with file-based routing. Today it serves a root landing page and a `/health` page that calls the backend health endpoint; auth and most domain features are not wired yet.
 
 By default the dev server listens on [http://localhost:3000](http://localhost:3000). The `backend/` service defaults to port `8000`, and the docs site to `3001`.
 
@@ -30,6 +30,26 @@ npm run dev
 
 Starts the app at [http://localhost:3000](http://localhost:3000). The root route renders **AI Football Coach**.
 
+## Local backend for `/health`
+
+The `/health` page fetches the backend `GET /health` endpoint and shows the status (or an unavailable message if the request fails).
+
+1. Start the backend (defaults to [http://127.0.0.1:8000](http://127.0.0.1:8000)):
+
+```bash
+cd backend
+cargo run
+```
+
+2. Start the frontend (`npm run dev` as above).
+
+3. Open [http://localhost:3000/health](http://localhost:3000/health).
+
+By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/health`). Override with the Vite env var `VITE_BACKEND_BASE_URL` if your backend listens elsewhere—for example:
+
+```bash
+VITE_BACKEND_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
 ## Tests
 
 ```bash
@@ -63,5 +83,6 @@ npm run typecheck      # tsc --noEmit
 | `frontend/vite.config.ts` | Vite + `@tanstack/react-start` plugin |
 | `frontend/src/routes/__root.tsx` | Document shell / head |
 | `frontend/src/routes/index.tsx` | Root (`/`) page |
+| `frontend/src/routes/health.tsx` | `/health` page (calls backend `GET /health`) |
 | `frontend/src/router.tsx` | Router factory |
 | `frontend/tests/` | Acceptance-style Vitest checks for the scaffold |
