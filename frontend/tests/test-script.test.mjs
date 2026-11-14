@@ -12,9 +12,7 @@ const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
  */
 describe('test script', () => {
   it('frontend package.json includes a test script for quality-tests', () => {
-    const pkg = JSON.parse(
-      readFileSync(join(frontendRoot, 'package.json'), 'utf8'),
-    )
+    const pkg = JSON.parse(readFileSync(join(frontendRoot, 'package.json'), 'utf8'))
     const scripts = pkg.scripts ?? {}
 
     expect(typeof scripts.test).toBe('string')

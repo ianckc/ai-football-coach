@@ -26,7 +26,12 @@ methods:
         fi
         if [ -f frontend/package.json ]; then
           ran=1
-          echo "=== quality-static: frontend lint/typecheck ==="
+          echo "=== quality-static: frontend format/lint/typecheck ==="
+          if jq -e '.scripts["format:check"]' frontend/package.json >/dev/null 2>&1; then
+            (cd frontend && npm run format:check)
+          else
+            echo "no format:check script — skipping"
+          fi
           if jq -e '.scripts.lint' frontend/package.json >/dev/null 2>&1; then
             (cd frontend && npm run lint)
           else

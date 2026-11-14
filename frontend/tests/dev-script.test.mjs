@@ -11,9 +11,7 @@ const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
  */
 describe('dev script', () => {
   it('frontend has a documented npm script to start locally', () => {
-    const pkg = JSON.parse(
-      readFileSync(join(frontendRoot, 'package.json'), 'utf8'),
-    )
+    const pkg = JSON.parse(readFileSync(join(frontendRoot, 'package.json'), 'utf8'))
     const scripts = pkg.scripts ?? {}
 
     expect(typeof scripts.dev).toBe('string')

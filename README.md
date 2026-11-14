@@ -29,7 +29,7 @@ The TanStack Start app lives in [`frontend/`](frontend/).
 
 ### Requirements
 
-- [Node.js](https://nodejs.org/) 22+ (26 works; same family as [`docs/.nvmrc`](docs/.nvmrc))
+- [Node.js](https://nodejs.org/) 26 (see [`frontend/.nvmrc`](frontend/.nvmrc))
 
 ### Installation
 
@@ -54,6 +54,16 @@ cd frontend
 npm test -- --run
 ```
 
+### Quality gates
+
+```bash
+cd frontend
+npm run format:check
+npm run lint
+npm run typecheck
+```
+
+Biome provides lint and format. GitHub Actions runs these plus tests and production build on frontend PRs. Details: [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
 ## Docs site
 
 The [Docusaurus](https://docusaurus.io/) docs site lives in [`docs/`](docs/).
