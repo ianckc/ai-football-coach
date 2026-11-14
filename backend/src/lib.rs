@@ -20,11 +20,10 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 struct AppState {
-    /// Accounts keyed by email. In-memory store is enough for this ticket.
     accounts: Arc<Mutex<HashMap<String, StoredAccount>>>,
 }
 
-#[allow(dead_code)] // retained for the account record; login is out of scope
+#[expect(dead_code)] // written for the account record; not read until login exists
 struct StoredAccount {
     id: String,
     email: String,
@@ -59,6 +58,10 @@ fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error>
         .map(|hash| hash.to_string())
 }
 
+fn error_json(status: StatusCode, message: &str) -> axum::response::Response {
+    (status, Json(json!({ "error": message }))).into_response()
+}
+
 async fn health() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
@@ -76,52 +79,36 @@ async fn create_account(
         .trim();
 
     if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "invalid email or password" })),
-        )
-            .into_response();
+        return error_json(StatusCode::BAD_REQUEST, "invalid email or password");
     }
 
     let Ok(password_hash) = hash_password(password) else {
-        return (
+        return error_json(
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": "failed to create account" })),
-        )
-            .into_response();
+            "failed to create account",
+        );
     };
 
     let id = Uuid::new_v4().to_string();
     let mut accounts = state.accounts.lock().expect("accounts lock");
 
     if accounts.contains_key(&email) {
-        return (
-            StatusCode::CONFLICT,
-            Json(json!({ "error": "email already exists" })),
-        )
-            .into_response();
+        return error_json(StatusCode::CONFLICT, "email already exists");
     }
 
+    let created = json!({ "id": id, "email": email });
     accounts.insert(
         email.clone(),
         StoredAccount {
-            id: id.clone(),
-            email: email.clone(),
+            id,
+            email,
             password_hash,
         },
     );
 
-    (
-        StatusCode::CREATED,
-        Json(json!({
-            "id": id,
-            "email": email,
-        })),
-    )
-        .into_response()
+    (StatusCode::CREATED, Json(created)).into_response()
 }
 
-/// Local frontend origins (Vite on port 3000).
 fn local_dev_cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin([
@@ -132,7 +119,6 @@ fn local_dev_cors() -> CorsLayer {
         .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::ACCEPT])
 }
 
-/// Application router. Routes are added as acceptance slices land.
 pub fn app() -> Router {
     let state = AppState {
         accounts: Arc::new(Mutex::new(HashMap::new())),

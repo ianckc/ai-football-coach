@@ -18,11 +18,9 @@ function Health() {
         return response.json()
       })
       .then((body: { status: string }) => {
-        setError(null)
         setStatus(body.status)
       })
       .catch(() => {
-        setStatus(null)
         setError('Backend unavailable')
       })
   }, [])
@@ -30,8 +28,8 @@ function Health() {
   return (
     <main>
       <h1>Health</h1>
-      {error !== null ? <p>{error}</p> : null}
-      {status !== null ? <p>Backend status: {status}</p> : null}
+      {error ? <p>{error}</p> : null}
+      {status ? <p>Backend status: {status}</p> : null}
     </main>
   )
 }
