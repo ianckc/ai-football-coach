@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Backend API
 
-The Rust/Axum service in `backend/` exposes HTTP APIs for the product. It listens on `0.0.0.0:3000` by default.
+The Rust/Axum service in `backend/` exposes HTTP APIs for the product. It listens on `0.0.0.0:8000` by default.
 
 ## Run locally
 
@@ -72,7 +72,7 @@ Email uniqueness is case-sensitive with the current store (`Coach@example.com` a
 **Example**
 
 ```bash
-curl -sS -X POST http://127.0.0.1:3000/accounts \
+curl -sS -X POST http://127.0.0.1:8000/accounts \
   -H 'Content-Type: application/json' \
   -d '{"email":"coach@example.com","password":"secret"}'
 ```
