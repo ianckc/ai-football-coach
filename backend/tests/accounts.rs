@@ -272,6 +272,44 @@ async fn accounts_post_rejects_duplicate_email() {
     );
 }
 
+/// Acceptance slice: Reject whitespace-only passwords (trim before the non-empty
+/// check) with `400` and a JSON error body.
+#[tokio::test]
+async fn accounts_post_rejects_whitespace_only_password() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"email":"coach@example.com","password":"   "}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.status(),
+        StatusCode::BAD_REQUEST,
+        "POST /accounts must return 400 for a whitespace-only password"
+    );
+
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&bytes)
+        .expect("POST /accounts must return a JSON error body for whitespace-only password");
+    assert!(
+        json.is_object(),
+        "POST /accounts whitespace-only password error body must be a JSON object"
+    );
+}
+
 /// Acceptance slice: Normalize email for uniqueness (e.g. lowercase) so
 /// `Coach@example.com` and `coach@example.com` collide as the same account (`409`).
 #[tokio::test]
