@@ -7,7 +7,8 @@ This file is the **contract** for anyone (human or agent) changing this repo via
 AI Football Coach — help football coaches plan training and improve teams.
 
 - Docs site today: [`docs/`](docs/) (Docusaurus)
-- Product apps (Phase 2): `backend/` (Rust) and `frontend/` (TanStack) — not scaffolded yet
+- Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start)
+
 
 ## Vocabulary
 

@@ -21,7 +21,38 @@ swamp workflow approvals             # paste prompt into Cursor, then approve/re
 
 Full guide (docs site): [`docs/docs/software-factory.mdx`](docs/docs/software-factory.mdx) — run `cd docs && npm start` and open **Software factory**. Agent contract: [`AGENTS.md`](AGENTS.md).
 
-Product apps: `backend/` (Rust/Axum) is in progress; `frontend/` (TanStack) is not scaffolded yet. API reference: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx) (also **Backend API** on the docs site).
+Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start). API reference: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx) (also **Backend API** on the docs site).
+
+## Frontend
+
+The TanStack Start app lives in [`frontend/`](frontend/).
+
+### Requirements
+
+- [Node.js](https://nodejs.org/) 22+ (26 works; same family as [`docs/.nvmrc`](docs/.nvmrc))
+
+### Installation
+
+```bash
+cd frontend
+npm install
+```
+
+### Local development
+
+```bash
+cd frontend
+npm run dev
+```
+
+Starts the frontend at [http://localhost:3000](http://localhost:3000).
+
+### Tests
+
+```bash
+cd frontend
+npm test -- --run
+```
 
 ## Docs site
 
