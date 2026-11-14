@@ -15,3 +15,8 @@ Append a short note after each finished `run-ticket` run.
 - Rounds: 2
 - Outcome: `frontend/` TanStack Start scaffold; `npm run dev` on :3000; root `/` identifies product; README + `docs/docs/frontend.mdx`; vitest `test` script for `quality-tests`. Review: no critical/high. `.force-red` absent.
 - Machine fixes (prompts/gates/docs): AGENTS.md product surface updated (frontend route + real tests); stub `.force-red` marked legacy now that both apps exist.
+
+### 2026-11-14 — ianckc/ai-football-coach#15
+- Rounds: 4
+- Outcome: Hardened `POST /accounts` validation (email lowercase uniqueness, whitespace-only password reject, wrong JSON types → 400, email rules documented). Review: no critical/high. `.force-red` absent.
+- Machine fixes (prompts/gates/docs): none; AGENTS.md product surface unchanged (existing accounts route only).

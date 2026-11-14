@@ -216,6 +216,65 @@ async fn accounts_post_rejects_missing_or_invalid_email_or_password() {
     }
 }
 
+/// Acceptance slice: Map wrong JSON field types for `email` / `password` (e.g.
+/// `"email": 1`) to `400` with a JSON error body — not Axum's default 422.
+#[tokio::test]
+async fn accounts_post_rejects_wrong_json_field_types_with_400() {
+    let cases = [
+        (r#"{"email":1,"password":"secret123"}"#, "email as number"),
+        (
+            r#"{"email":"coach@example.com","password":1}"#,
+            "password as number",
+        ),
+        (
+            r#"{"email":true,"password":"secret123"}"#,
+            "email as boolean",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":false}"#,
+            "password as boolean",
+        ),
+    ];
+
+    for (body, label) in cases {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/accounts")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "POST /accounts must return 400 for {label} (not 422)"
+        );
+        assert_ne!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "POST /accounts must not return Axum default 422 for {label}"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| panic!("POST /accounts must return a JSON error body for {label}"));
+        assert!(
+            json.is_object(),
+            "POST /accounts error body must be a JSON object for {label}"
+        );
+    }
+}
+
 /// Acceptance slice: Reject a duplicate email with `409` and a JSON error body.
 #[tokio::test]
 async fn accounts_post_rejects_duplicate_email() {
@@ -269,5 +328,144 @@ async fn accounts_post_rejects_duplicate_email() {
     assert!(
         json.is_object(),
         "POST /accounts duplicate-email error body must be a JSON object"
+    );
+}
+
+/// Acceptance slice: Reject whitespace-only passwords (trim before the non-empty
+/// check) with `400` and a JSON error body.
+#[tokio::test]
+async fn accounts_post_rejects_whitespace_only_password() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"email":"coach@example.com","password":"   "}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.status(),
+        StatusCode::BAD_REQUEST,
+        "POST /accounts must return 400 for a whitespace-only password"
+    );
+
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&bytes)
+        .expect("POST /accounts must return a JSON error body for whitespace-only password");
+    assert!(
+        json.is_object(),
+        "POST /accounts whitespace-only password error body must be a JSON object"
+    );
+}
+
+/// Acceptance slice: Normalize email for uniqueness (e.g. lowercase) so
+/// `Coach@example.com` and `coach@example.com` collide as the same account (`409`).
+#[tokio::test]
+async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
+    let app = app();
+
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"email":"Coach@example.com","password":"secret123"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        first.status(),
+        StatusCode::CREATED,
+        "first POST /accounts with Coach@example.com must succeed"
+    );
+
+    let second = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"email":"coach@example.com","password":"other-secret"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        second.status(),
+        StatusCode::CONFLICT,
+        "POST /accounts must return 409 when email differs only by case"
+    );
+
+    let bytes = second
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&bytes).expect("POST /accounts must return a JSON error body");
+    assert!(
+        json.is_object(),
+        "POST /accounts case-duplicate email error body must be a JSON object"
+    );
+}
+
+/// Acceptance slice: Document current email validation rules (or tighten to a
+/// clearly defined product rule) so clients know what `POST /accounts` accepts.
+#[test]
+fn backend_api_docs_document_email_validation_rules() {
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/docs/backend-api.mdx");
+    let docs = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+    let lower = docs.to_ascii_lowercase();
+
+    assert!(
+        !lower.contains("case-sensitive"),
+        "backend-api docs must not claim case-sensitive email uniqueness; emails are normalized"
+    );
+    assert!(
+        lower.contains("lowercase")
+            || lower.contains("case-insensitive")
+            || lower.contains("normaliz"),
+        "backend-api docs must document that emails are normalized (e.g. lowercase) for uniqueness"
+    );
+    assert!(
+        lower.contains("local@domain")
+            || (lower.contains("local") && lower.contains("domain") && docs.contains('@')),
+        "backend-api docs must document the email shape POST /accounts accepts (local@domain…)"
+    );
+    assert!(
+        lower.contains("trim") && lower.contains("non-empty"),
+        "backend-api docs must document trim and non-empty email requirements"
+    );
+    // Product rule clients can rely on: domain must include a '.' (not full RFC 5322).
+    assert!(
+        lower.contains("domain")
+            && (docs.contains(".tld")
+                || lower.contains("contains a '.'")
+                || lower.contains("contains a `.`")
+                || lower.contains("dot in the domain")
+                || lower.contains("'.' in the domain")),
+        "backend-api docs must state the domain-dot product rule for accepted emails"
     );
 }

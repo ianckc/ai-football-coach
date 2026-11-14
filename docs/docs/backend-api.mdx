@@ -44,8 +44,8 @@ Create a coach account. Passwords are hashed with argon2 before storage. The cur
 
 | Field | Rules |
 |-------|--------|
-| `email` | Required non-empty string after trim; must look like `local@domain.tld` |
-| `password` | Required non-empty string |
+| `email` | Required non-empty string after trim; normalized to lowercase for uniqueness; must look like `local@domain.tld` (domain contains a `.`) |
+| `password` | Required non-empty string after trim |
 
 **Success:** `201 Created`
 
@@ -58,16 +58,15 @@ Create a coach account. Passwords are hashed with argon2 before storage. The cur
 
 - `id` is a UUID v4 string.
 - The password is never returned.
+- The response `email` is the normalized (lowercase) value.
 
 **Errors**
 
 | Status | When | Body shape |
 |--------|------|------------|
-| `400` | Missing, empty, or invalid email or password | JSON object (e.g. `{ "error": "…" }`) |
-| `409` | Email already registered | JSON object (e.g. `{ "error": "…" }`) |
+| `400` | Missing, empty, wrong JSON type, or invalid email or password | JSON object (e.g. `{ "error": "…" }`) |
+| `409` | Email already registered (after lowercase normalization; `Coach@example.com` and `coach@example.com` collide) | JSON object (e.g. `{ "error": "…" }`) |
 | `415` | Body is not JSON | (non-JSON content type) |
-
-Email uniqueness is case-sensitive with the current store (`Coach@example.com` and `coach@example.com` are distinct).
 
 **Example**
 
