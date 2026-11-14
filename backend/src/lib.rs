@@ -58,10 +58,15 @@ async fn create_account(
     State(state): State<AppState>,
     Json(body): Json<CreateAccountRequest>,
 ) -> impl IntoResponse {
-    let email = body.email.as_deref().unwrap_or("").trim();
+    let email = body
+        .email
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     let password = body.password.as_deref().unwrap_or("");
 
-    if email.is_empty() || !is_valid_email(email) || password.is_empty() {
+    if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": "invalid email or password" })),
@@ -80,7 +85,7 @@ async fn create_account(
     let id = Uuid::new_v4().to_string();
     let mut accounts = state.accounts.lock().expect("accounts lock");
 
-    if accounts.contains_key(email) {
+    if accounts.contains_key(&email) {
         return (
             StatusCode::CONFLICT,
             Json(json!({ "error": "email already exists" })),
@@ -89,10 +94,10 @@ async fn create_account(
     }
 
     accounts.insert(
-        email.to_string(),
+        email.clone(),
         StoredAccount {
             id: id.clone(),
-            email: email.to_string(),
+            email: email.clone(),
             password_hash,
         },
     );
