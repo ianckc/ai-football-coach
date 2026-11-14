@@ -48,8 +48,20 @@ Ownership is enforced by this contract and kickoff prompts — not by filesystem
 | Approve / resume | `swamp workflow approve <wf> <step> --run <id>` then `swamp workflow resume <wf> --run <id>` |
 | Continue rounds | `swamp workflow signal --workflow tdd-round --key tdd-more-rounds --payload '{"continue":true}'` |
 
-Config: copy [`factory.env.example`](factory.env.example) → `factory.env` (gitignored). See [`docs/factory-howto.md`](docs/factory-howto.md).
+### Project skills (`.cursor/skills/`)
 
+| Skill | Use when |
+|-------|----------|
+| `/deslop` | Remove AI slop from a diff without changing behavior |
+| `/security-review` | High-confidence security / OWASP-style review |
+| `/rust-best-practices` | Write or review Rust in `backend/` |
+| `/frontend-best-practices` | TypeScript / React / TanStack Start work in `frontend/` |
+| `/code-simplifier` | Clarify code while preserving behavior |
+| `/check-dependencies` | Outdated packages, npm/cargo audit, Dependabot |
+
+Invoke with `/skill-name` in Agent chat, or rely on description-based auto-discovery. TanStack API details live in `frontend/node_modules/@tanstack/*/skills/` (loaded via `frontend-best-practices`).
+
+Config: copy [`factory.env.example`](factory.env.example) → `factory.env` (gitignored). See [`docs/factory-howto.md`](docs/factory-howto.md).
 ### Agent A — paste (backup if approvals unavailable)
 
 ```text
