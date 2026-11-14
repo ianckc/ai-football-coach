@@ -271,3 +271,63 @@ async fn accounts_post_rejects_duplicate_email() {
         "POST /accounts duplicate-email error body must be a JSON object"
     );
 }
+
+/// Acceptance slice: Normalize email for uniqueness (e.g. lowercase) so
+/// `Coach@example.com` and `coach@example.com` collide as the same account (`409`).
+#[tokio::test]
+async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
+    let app = app();
+
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"email":"Coach@example.com","password":"secret123"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        first.status(),
+        StatusCode::CREATED,
+        "first POST /accounts with Coach@example.com must succeed"
+    );
+
+    let second = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"email":"coach@example.com","password":"other-secret"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        second.status(),
+        StatusCode::CONFLICT,
+        "POST /accounts must return 409 when email differs only by case"
+    );
+
+    let bytes = second
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&bytes).expect("POST /accounts must return a JSON error body");
+    assert!(
+        json.is_object(),
+        "POST /accounts case-duplicate email error body must be a JSON object"
+    );
+}
