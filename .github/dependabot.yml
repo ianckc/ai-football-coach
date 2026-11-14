@@ -1,0 +1,50 @@
+# Weekly dependency + Actions updates. Free on all GitHub plans.
+# Also enable Dependabot alerts + security updates in:
+# Settings → Code security and analysis
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      frontend-production:
+        dependency-type: production
+      frontend-development:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      docs-production:
+        dependency-type: production
+      docs-development:
+        dependency-type: development
+
+  - package-ecosystem: cargo
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      backend-crates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
