@@ -32,8 +32,8 @@ struct StoredAccount {
 
 #[derive(Deserialize)]
 struct CreateAccountRequest {
-    email: Option<String>,
-    password: Option<String>,
+    email: Option<Value>,
+    password: Option<Value>,
 }
 
 fn is_valid_email(email: &str) -> bool {
@@ -41,6 +41,14 @@ fn is_valid_email(email: &str) -> bool {
         return false;
     };
     !local.is_empty() && !domain.is_empty() && domain.contains('.')
+}
+
+/// String fields only; wrong JSON types, null, and missing are treated as absent.
+fn json_string_field(value: Option<&Value>) -> Option<&str> {
+    match value {
+        Some(Value::String(s)) => Some(s.as_str()),
+        _ => None,
+    }
 }
 
 fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
@@ -58,13 +66,13 @@ async fn create_account(
     State(state): State<AppState>,
     Json(body): Json<CreateAccountRequest>,
 ) -> impl IntoResponse {
-    let email = body
-        .email
-        .as_deref()
+    let email = json_string_field(body.email.as_ref())
         .unwrap_or("")
         .trim()
         .to_ascii_lowercase();
-    let password = body.password.as_deref().unwrap_or("").trim();
+    let password = json_string_field(body.password.as_ref())
+        .unwrap_or("")
+        .trim();
 
     if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
         return (
