@@ -19,10 +19,7 @@ describe('health page backend call', () => {
     expect(source).toMatch(/\bfetch\s*\(/)
 
     // `/health` must appear as a request path outside createFileRoute('/health').
-    const withoutFileRoute = source.replace(
-      /createFileRoute\(\s*['"]\/health['"]\s*\)/g,
-      '',
-    )
+    const withoutFileRoute = source.replace(/createFileRoute\(\s*['"]\/health['"]\s*\)/g, '')
     expect(withoutFileRoute).toMatch(/\/health/)
   })
 })
