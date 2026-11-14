@@ -64,7 +64,7 @@ async fn create_account(
         .unwrap_or("")
         .trim()
         .to_ascii_lowercase();
-    let password = body.password.as_deref().unwrap_or("");
+    let password = body.password.as_deref().unwrap_or("").trim();
 
     if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
         return (
