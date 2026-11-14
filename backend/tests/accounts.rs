@@ -221,10 +221,7 @@ async fn accounts_post_rejects_missing_or_invalid_email_or_password() {
 #[tokio::test]
 async fn accounts_post_rejects_wrong_json_field_types_with_400() {
     let cases = [
-        (
-            r#"{"email":1,"password":"secret123"}"#,
-            "email as number",
-        ),
+        (r#"{"email":1,"password":"secret123"}"#, "email as number"),
         (
             r#"{"email":"coach@example.com","password":1}"#,
             "password as number",
@@ -269,9 +266,8 @@ async fn accounts_post_rejects_wrong_json_field_types_with_400() {
             .await
             .expect("read body")
             .to_bytes();
-        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_else(|_| {
-            panic!("POST /accounts must return a JSON error body for {label}")
-        });
+        let json: serde_json::Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| panic!("POST /accounts must return a JSON error body for {label}"));
         assert!(
             json.is_object(),
             "POST /accounts error body must be a JSON object for {label}"
@@ -437,7 +433,8 @@ async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
 /// clearly defined product rule) so clients know what `POST /accounts` accepts.
 #[test]
 fn backend_api_docs_document_email_validation_rules() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/docs/backend-api.mdx");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/docs/backend-api.mdx");
     let docs = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
     let lower = docs.to_ascii_lowercase();
