@@ -10,7 +10,7 @@ By default the dev server listens on [http://localhost:3000](http://localhost:30
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 22+ (Node 26 works; same major family as the docs site `.nvmrc`)
+- [Node.js](https://nodejs.org/) 26 (see [`frontend/.nvmrc`](frontend/.nvmrc); same as the docs site)
 
 ## Install
 
@@ -39,20 +39,27 @@ npm test -- --run
 
 `quality-tests` in the software factory runs this same command.
 
-## Typecheck
+## Quality gates
+
+Biome handles lint and format. TypeScript covers typecheck.
 
 ```bash
 cd frontend
-npm run typecheck
+npm run format:check   # Biome format (CI / factory)
+npm run format         # Biome format --write (local fix)
+npm run lint           # Biome lint
+npm run typecheck      # tsc --noEmit
 ```
 
-`quality-static` runs `tsc --noEmit` when a `typecheck` script is present (there is no frontend lint script yet).
+`quality-static` runs `format:check`, `lint`, and `typecheck` when those scripts are present. GitHub Actions (`.github/workflows/frontend.yml`) enforces the same on PRs that touch `frontend/`, plus `npm test -- --run` and `npm run build`.
 
 ## Layout
 
 | Path | Role |
 |------|------|
-| `frontend/package.json` | Scripts (`dev`, `test`, `build`, `typecheck`) and TanStack Start deps |
+| `frontend/package.json` | Scripts (`dev`, `test`, `build`, `lint`, `format`, `format:check`, `typecheck`) and TanStack Start deps |
+| `frontend/biome.json` | Biome lint + format config |
+| `frontend/.nvmrc` | Node 26 for local and CI |
 | `frontend/vite.config.ts` | Vite + `@tanstack/react-start` plugin |
 | `frontend/src/routes/__root.tsx` | Document shell / head |
 | `frontend/src/routes/index.tsx` | Root (`/`) page |
