@@ -216,6 +216,69 @@ async fn accounts_post_rejects_missing_or_invalid_email_or_password() {
     }
 }
 
+/// Acceptance slice: Map wrong JSON field types for `email` / `password` (e.g.
+/// `"email": 1`) to `400` with a JSON error body — not Axum's default 422.
+#[tokio::test]
+async fn accounts_post_rejects_wrong_json_field_types_with_400() {
+    let cases = [
+        (
+            r#"{"email":1,"password":"secret123"}"#,
+            "email as number",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":1}"#,
+            "password as number",
+        ),
+        (
+            r#"{"email":true,"password":"secret123"}"#,
+            "email as boolean",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":false}"#,
+            "password as boolean",
+        ),
+    ];
+
+    for (body, label) in cases {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/accounts")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "POST /accounts must return 400 for {label} (not 422)"
+        );
+        assert_ne!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "POST /accounts must not return Axum default 422 for {label}"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_else(|_| {
+            panic!("POST /accounts must return a JSON error body for {label}")
+        });
+        assert!(
+            json.is_object(),
+            "POST /accounts error body must be a JSON object for {label}"
+        );
+    }
+}
+
 /// Acceptance slice: Reject a duplicate email with `409` and a JSON error body.
 #[tokio::test]
 async fn accounts_post_rejects_duplicate_email() {
