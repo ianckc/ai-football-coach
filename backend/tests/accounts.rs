@@ -432,3 +432,43 @@ async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
         "POST /accounts case-duplicate email error body must be a JSON object"
     );
 }
+
+/// Acceptance slice: Document current email validation rules (or tighten to a
+/// clearly defined product rule) so clients know what `POST /accounts` accepts.
+#[test]
+fn backend_api_docs_document_email_validation_rules() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/docs/backend-api.mdx");
+    let docs = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+    let lower = docs.to_ascii_lowercase();
+
+    assert!(
+        !lower.contains("case-sensitive"),
+        "backend-api docs must not claim case-sensitive email uniqueness; emails are normalized"
+    );
+    assert!(
+        lower.contains("lowercase")
+            || lower.contains("case-insensitive")
+            || lower.contains("normaliz"),
+        "backend-api docs must document that emails are normalized (e.g. lowercase) for uniqueness"
+    );
+    assert!(
+        lower.contains("local@domain")
+            || (lower.contains("local") && lower.contains("domain") && docs.contains('@')),
+        "backend-api docs must document the email shape POST /accounts accepts (local@domain…)"
+    );
+    assert!(
+        lower.contains("trim") && lower.contains("non-empty"),
+        "backend-api docs must document trim and non-empty email requirements"
+    );
+    // Product rule clients can rely on: domain must include a '.' (not full RFC 5322).
+    assert!(
+        lower.contains("domain")
+            && (docs.contains(".tld")
+                || lower.contains("contains a '.'")
+                || lower.contains("contains a `.`")
+                || lower.contains("dot in the domain")
+                || lower.contains("'.' in the domain")),
+        "backend-api docs must state the domain-dot product rule for accepted emails"
+    );
+}
