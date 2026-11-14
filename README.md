@@ -21,7 +21,7 @@ swamp workflow approvals             # paste prompt into Cursor, then approve/re
 
 Full guide (docs site): [`docs/docs/software-factory.mdx`](docs/docs/software-factory.mdx) — run `cd docs && npm start` and open **Software factory**. Agent contract: [`AGENTS.md`](AGENTS.md).
 
-Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start). API reference: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx) (also **Backend API** on the docs site).
+Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start). API reference: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx) (also **Backend API** on the docs site). Frontend setup: [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx) (also **Frontend** on the docs site).
 
 ## Frontend
 
