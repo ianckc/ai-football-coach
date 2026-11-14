@@ -47,6 +47,7 @@ npm run dev
 
 Starts the frontend at [http://localhost:3000](http://localhost:3000).
 
+To exercise `/health` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health). The page uses `VITE_BACKEND_BASE_URL` when set; otherwise it defaults to `http://127.0.0.1:8000`. See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
 ### Tests
 
 ```bash
