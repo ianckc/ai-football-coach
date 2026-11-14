@@ -90,6 +90,10 @@ const config: Config = {
               label: 'Backend API',
               to: '/docs/backend-api',
             },
+            {
+              label: 'Frontend',
+              to: '/docs/frontend',
+            },
           ],
         },
       ],
