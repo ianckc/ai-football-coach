@@ -6,14 +6,14 @@ This file is the **contract** for anyone (human or agent) changing this repo via
 
 AI Football Coach — help football coaches plan training and improve teams.
 
-- Docs site today: [`docs/`](docs/) (Docusaurus)
-- Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start)
-
+- Docs site: [`docs/`](docs/) (Docusaurus) — includes Backend API and Frontend pages
+- Backend: `backend/` (Rust/Axum) — health + account creation API (see [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx))
+- Frontend: `frontend/` (TanStack Start) — root `/` landing page (“AI Football Coach”); `npm run dev` on port 3000 (see [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx))
 
 ## Vocabulary
 
 - Prefer domain words from the ticket (e.g. session, drill, squad). Do not invent parallel synonyms.
-- Until apps exist, still encode acceptance as tests/stubs the factory can turn red/green.
+- Encode acceptance as tests the factory can turn red/green (`backend` cargo tests, `frontend` vitest via `npm test -- --run`).
 
 ## Roles (TDD ping-pong + review)
 
@@ -75,9 +75,10 @@ Follow AGENTS.md and agent-constraints/agent-c-review.md.
 Record findings with severities. Do not edit code or tests.
 ```
 
-## Stub red/green (pre-product)
+## Stub red/green (legacy)
 
-Until `backend/` / `frontend/` exist:
+`backend/` and `frontend/` both exist and run real tests. Prefer failing product tests for red. Only use `work-orders/.force-red` when a ticket still has no runnable suite slice:
 
 - Agent A creates `work-orders/.force-red` so `quality-tests` exits non-zero
 - Agent B removes `work-orders/.force-red` when the slice is notionally done so green can pass
+- Never leave `.force-red` present after bookkeeping
