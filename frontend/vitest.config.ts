@@ -1,7 +1,11 @@
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  plugins: [react()],
   test: {
-    include: ['tests/**/*.{test,spec}.{js,mjs,ts}'],
+    environment: 'happy-dom',
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['tests/setup.ts'],
   },
 })

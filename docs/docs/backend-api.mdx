@@ -8,32 +8,55 @@ The Rust/Axum service in `backend/` exposes HTTP APIs for the product. It listen
 
 ## Run locally
 
-Accounts are stored in **Postgres**. Local development uses Docker Compose; production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon).
+Accounts are stored in **Postgres**. Local development uses Docker Compose with **two** Postgres services so manual API work and automated tests do not share data; production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon).
+
+| Use | Compose service | Host port | Persistence | Env |
+|-----|-----------------|-----------|-------------|-----|
+| Manual API (`cargo run`) | `postgres` | `5432` | Named volume `postgres_data` (survives `docker compose down`; cleared only with `-v`) | `DATABASE_URL` in `backend/.env` |
+| Automated tests (`cargo test` / `quality-tests`) | `postgres-test` | `5433` | Disposable (no named volume) | `TEST_DATABASE_URL` (optional; defaults to `:5433`) |
+
+Local-only credentials (both services): user / password / database `ai_football_coach`.
 
 1. Start Postgres from the repository root:
 
 ```bash
-docker compose up -d
+docker compose up -d                 # both services
+# or only what you need:
+docker compose up -d postgres        # manual-dev
+docker compose up -d postgres-test   # tests
 ```
 
-Service name: `postgres` (image `postgres:18`, host port `5432`). Local-only credentials:
-
-- user / password / database: `ai_football_coach`
-- example `DATABASE_URL`: `postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach`
+Example manual-dev URL: `postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach`
 
 2. Configure `DATABASE_URL` and run the backend (migrations apply automatically on startup):
 
 ```bash
 cd backend
-cp .env.example .env   # local Compose URL; gitignored
+cp .env.example .env   # local Compose URL for postgres :5432; gitignored
 cargo run
 ```
 
-`DATABASE_URL` is required (from the environment or `backend/.env`). Copy from `backend/.env.example`. Do not commit real credentials; Compose passwords are for local use only.
+`DATABASE_URL` is required for `cargo run` (from the environment or `backend/.env`). Copy from `backend/.env.example`. Do not commit real credentials; Compose passwords are for local use only.
+
+Optional local CORS: set `CORS_ALLOWED_ORIGINS` (comma-separated browser origins) when the frontend is not on port 3000. Defaults are `http://localhost:3000` and `http://127.0.0.1:3000`. This does not change the `GET /health` response contract.
 
 Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
 
-Backend `cargo test` uses the same Compose Postgres (`DATABASE_URL`); start it with `docker compose up -d` first (the factory `quality-tests` gate starts Compose when Docker is available).
+Backend `cargo test` connects to **`postgres-test`** (host port `5433`) by default, or to `TEST_DATABASE_URL` when set. It does **not** use `DATABASE_URL` from `backend/.env`. Start the test DB with `docker compose up -d postgres-test` (the factory `quality-tests` gate starts that service when Docker is available). CI provides its own Postgres and sets `TEST_DATABASE_URL`.
+
+## Layout
+
+Source under `backend/src/` is split by concern:
+
+| Path | Responsibility |
+|------|----------------|
+| `lib.rs` | Module tree, CORS, `app` / `app_with_cors_origins`, pool connect + migrations |
+| `main.rs` | Bind and serve (thin binary) |
+| `state.rs` | Shared `AppState` (Postgres pool) |
+| `routes/` | HTTP handlers and route registration (`/health`, `/accounts`) |
+| `accounts/` | Create-account domain logic (validation, password hashing, insert / uniqueness) |
+
+Add new endpoints under `routes/`; keep validation, hashing, and persistence in domain modules (e.g. `accounts/`), not in a monolithic `lib.rs`.
 
 ## Endpoints
 

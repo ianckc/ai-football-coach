@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Frontend
 
-The TanStack Start app in `frontend/` is the web UI for coaches. It is a TypeScript Vite app with file-based routing. Today it serves a root landing page and a `/health` page that calls the backend health endpoint; auth and most domain features are not wired yet.
+The TanStack Start app in `frontend/` is the web UI for coaches. It is a TypeScript Vite app with file-based routing. Today it serves a root landing page, a `/health` page that calls the backend health endpoint, and an `/accounts/create` page that posts to `POST /accounts`; login/session and most domain features are not wired yet.
 
 By default the dev server listens on [http://localhost:3000](http://localhost:3000). The `backend/` service defaults to port `8000`, and the docs site to `3001`.
 
@@ -52,7 +52,28 @@ cd frontend
 cp .env.example .env   # optional; gitignored
 npm run dev
 ```
+
+Local browser calls need CORS. The backend defaults to allowing Vite on port 3000 (`http://localhost:3000` and `http://127.0.0.1:3000`). To allow other origins, set `CORS_ALLOWED_ORIGINS` in `backend/.env` (comma-separated); see `backend/.env.example`. The `/health` JSON contract is unchanged.
+
+The same local `/health` setup is summarized in [`frontend/README.md`](../../frontend/README.md).
+
+## Local backend for `/accounts/create`
+
+The `/accounts/create` page posts JSON `{ "email", "password" }` to the backend `POST /accounts` endpoint (`Content-Type: application/json`). On `201` it shows a success state with the created account `email` (never the password). On `400` / `409` or if the backend is unreachable, it shows a clear error and does not pretend the account was created.
+
+1. Start the backend (defaults to [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
+
+2. Start the frontend (`npm run dev` as above).
+
+3. Open [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create).
+
+By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/accounts`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. The CORS notes above apply to browser `POST /accounts` calls as well.
+
+The same local `/accounts/create` setup is summarized in [`frontend/README.md`](../../frontend/README.md).
+
 ## Tests
+
+Acceptance checks are TypeScript Vitest files under `frontend/tests/`.
 
 ```bash
 cd frontend
@@ -86,5 +107,6 @@ npm run typecheck      # tsc --noEmit
 | `frontend/src/routes/__root.tsx` | Document shell / head |
 | `frontend/src/routes/index.tsx` | Root (`/`) page |
 | `frontend/src/routes/health.tsx` | `/health` page (calls backend `GET /health`) |
+| `frontend/src/routes/accounts.create.tsx` | `/accounts/create` page (calls backend `POST /accounts`) |
 | `frontend/src/router.tsx` | Router factory |
-| `frontend/tests/` | Acceptance-style Vitest checks for the scaffold |
+| `frontend/tests/` | TypeScript Vitest acceptance checks for the scaffold |

@@ -29,14 +29,16 @@ The Axum API lives in [`backend/`](backend/). It persists accounts in Postgres v
 
 ### Local Postgres
 
+Compose runs two local Postgres services: `postgres` on port `5432` for manual `cargo run` (named volume), and `postgres-test` on `5433` for `cargo test` / factory gates (disposable). See [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
+
 ```bash
 docker compose up -d
 cd backend
-cp .env.example .env   # sets DATABASE_URL for local Compose
+cp .env.example .env   # sets DATABASE_URL for manual-dev postgres :5432
 cargo run
 ```
 
-Migrations under `backend/migrations/` run automatically on startup. Production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon). Details: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
+Migrations under `backend/migrations/` run automatically on startup. Production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon).
 
 ## Frontend
 
@@ -62,8 +64,10 @@ npm run dev
 
 Starts the frontend at [http://localhost:3000](http://localhost:3000).
 
-To exercise `/health` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health). Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
+To exercise `/health` or `/accounts/create` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health) or [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create). Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
 ### Tests
+
+TypeScript Vitest acceptance checks live under `frontend/tests/`.
 
 ```bash
 cd frontend
