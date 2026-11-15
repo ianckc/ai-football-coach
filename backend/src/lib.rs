@@ -78,11 +78,13 @@ async fn create_account(
         .unwrap_or("")
         .trim();
 
-    if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
+    if email.is_empty() || !is_valid_email(&email) || password.chars().count() < 8 {
         return error_json(StatusCode::BAD_REQUEST, "invalid email or password");
     }
 
-    let Ok(password_hash) = hash_password(password) else {
+    let password = password.to_owned();
+    let hash_result = tokio::task::spawn_blocking(move || hash_password(&password)).await;
+    let Ok(Ok(password_hash)) = hash_result else {
         return error_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to create account",

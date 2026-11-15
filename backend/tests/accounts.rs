@@ -369,6 +369,91 @@ async fn accounts_post_rejects_whitespace_only_password() {
     );
 }
 
+/// Acceptance slice (#16): Reject passwords shorter than 8 characters with `400`
+/// and a JSON error body.
+#[tokio::test]
+async fn accounts_post_rejects_password_shorter_than_8_characters() {
+    let cases = [
+        (
+            r#"{"email":"coach@example.com","password":"short12"}"#,
+            "7-char password",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":"1234567"}"#,
+            "7-digit password",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":"a"}"#,
+            "1-char password",
+        ),
+    ];
+
+    for (body, label) in cases {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/accounts")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "POST /accounts must return 400 for password shorter than 8 characters ({label})"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_else(|_| {
+            panic!(
+                "POST /accounts must return a JSON error body for password shorter than 8 ({label})"
+            )
+        });
+        assert!(
+            json.is_object(),
+            "POST /accounts short-password error body must be a JSON object for {label}"
+        );
+    }
+}
+
+/// Acceptance slice (#16): Run password hashing off the async runtime (e.g.
+/// `spawn_blocking`) so Argon2 does not block Axum workers.
+#[test]
+fn create_account_runs_password_hashing_off_async_runtime() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
+    let src = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+
+    let handler_start = src
+        .find("async fn create_account")
+        .expect("create_account handler must exist");
+    let handler = &src[handler_start..];
+    let handler_end = handler[1..]
+        .find("\nasync fn ")
+        .or_else(|| handler[1..].find("\nfn "))
+        .map(|i| i + 1)
+        .unwrap_or(handler.len());
+    let handler = &handler[..handler_end];
+
+    assert!(
+        handler.contains("spawn_blocking"),
+        "create_account must run password hashing via spawn_blocking (or equivalent) so Argon2 does not block Axum workers"
+    );
+    assert!(
+        handler.contains("hash_password"),
+        "create_account must still hash passwords (via hash_password) off the async runtime"
+    );
+}
+
 /// Acceptance slice: Normalize email for uniqueness (e.g. lowercase) so
 /// `Coach@example.com` and `coach@example.com` collide as the same account (`409`).
 #[tokio::test]
