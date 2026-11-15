@@ -7,7 +7,7 @@ export const Route = createFileRoute('/accounts/create')({
 
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://127.0.0.1:8000'
 
-function CreateAccount() {
+export function CreateAccount() {
   const [createdEmail, setCreatedEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 

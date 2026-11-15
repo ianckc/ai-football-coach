@@ -1,12 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Route } from '../src/routes/accounts.create'
-
-const CreateAccount = Route.options.component
+import { CreateAccount } from '../src/routes/accounts.create'
 
 async function submitCreateAccountForm() {
-  expect(CreateAccount, 'create-account route must define a component').toBeTypeOf('function')
-
   render(<CreateAccount />)
 
   fireEvent.change(screen.getByLabelText(/email/i), {
@@ -18,7 +14,10 @@ async function submitCreateAccountForm() {
 
   const form = document.querySelector('form')
   expect(form, 'page must include a form to submit').not.toBeNull()
-  fireEvent.submit(form!)
+  if (!form) {
+    throw new Error('page must include a form to submit')
+  }
+  fireEvent.submit(form)
 }
 
 /**

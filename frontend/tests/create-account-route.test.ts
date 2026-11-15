@@ -36,8 +36,13 @@ describe('create account route', () => {
       match,
       'expected a route file for /accounts/create or /create-account under src/routes/',
     ).toBeDefined()
+    if (!match) {
+      throw new Error(
+        'expected a route file for /accounts/create or /create-account under src/routes/',
+      )
+    }
 
-    const source = readFileSync(match!.path, 'utf8')
-    expect(source).toContain(`createFileRoute('${match!.fileRoute}')`)
+    const source = readFileSync(match.path, 'utf8')
+    expect(source).toContain(`createFileRoute('${match.fileRoute}')`)
   })
 })
