@@ -374,9 +374,18 @@ async fn accounts_post_rejects_whitespace_only_password() {
 #[tokio::test]
 async fn accounts_post_rejects_password_shorter_than_8_characters() {
     let cases = [
-        (r#"{"email":"coach@example.com","password":"short12"}"#, "7-char password"),
-        (r#"{"email":"coach@example.com","password":"1234567"}"#, "7-digit password"),
-        (r#"{"email":"coach@example.com","password":"a"}"#, "1-char password"),
+        (
+            r#"{"email":"coach@example.com","password":"short12"}"#,
+            "7-char password",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":"1234567"}"#,
+            "7-digit password",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":"a"}"#,
+            "1-char password",
+        ),
     ];
 
     for (body, label) in cases {
