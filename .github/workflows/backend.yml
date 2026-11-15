@@ -13,6 +13,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ai_football_coach
+          POSTGRES_PASSWORD: ai_football_coach
+          POSTGRES_DB: ai_football_coach
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ai_football_coach -d ai_football_coach"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -21,7 +37,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: backend
-      # Integration tests use testcontainers (Docker socket is available on ubuntu-latest).
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked

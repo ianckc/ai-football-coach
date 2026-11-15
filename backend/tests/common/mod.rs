@@ -2,65 +2,37 @@ use ai_football_coach_backend::{app, connect_pool, run_migrations};
 use axum::Router;
 use sqlx::PgPool;
 use std::sync::OnceLock;
-use testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner};
-use testcontainers_modules::postgres::Postgres;
-use tokio::runtime::Runtime;
+use tokio::sync::Mutex;
 
-/// Long-lived runtime so the Postgres container outlives individual `#[tokio::test]` runtimes.
-static SHARED_RT: OnceLock<Runtime> = OnceLock::new();
-static DATABASE_URL: OnceLock<String> = OnceLock::new();
-// Keep the container alive for the process; dropping it stops Postgres.
-static CONTAINER: OnceLock<ContainerAsync<Postgres>> = OnceLock::new();
+/// Same URL as `docker-compose.yml` / `backend/.env.example`.
+const DEFAULT_DATABASE_URL: &str =
+    "postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach";
 
-fn shared_runtime() -> &'static Runtime {
-    SHARED_RT.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("build shared test runtime")
-    })
+static MIGRATIONS: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn database_url() -> String {
+    // Prefer process env, then backend/.env, then Compose local default.
+    let _ = dotenvy::dotenv();
+    std::env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_owned())
 }
 
-fn database_url() -> &'static str {
-    DATABASE_URL.get_or_init(|| {
-        // `block_on` must not run on a thread already inside a tokio test runtime.
-        std::thread::spawn(|| {
-            shared_runtime().block_on(async {
-                // Match local Compose major (postgres:18); module default is still 11-alpine.
-                let container = Postgres::default()
-                    .with_tag("18-alpine")
-                    .start()
-                    .await
-                    .expect("start postgres testcontainer");
-                let host = container.get_host().await.expect("postgres host");
-                let port = container
-                    .get_host_port_ipv4(5432)
-                    .await
-                    .expect("postgres port");
-                let url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
-                let pool = connect_pool(&url).await.expect("connect to test postgres");
-                run_migrations(&pool)
-                    .await
-                    .expect("run migrations on test postgres");
-                // Disconnect bootstrap pool; tests open their own pools on their runtime.
-                pool.close().await;
-                CONTAINER
-                    .set(container)
-                    .unwrap_or_else(|_| panic!("testcontainer already set"));
-                url
-            })
-        })
-        .join()
-        .expect("shared postgres init thread")
-    })
-}
-
-/// Pool on the current test tokio runtime, against the shared hermetic Postgres.
+/// Pool against local Compose (or `DATABASE_URL`) — no ephemeral testcontainers.
 pub async fn test_pool() -> PgPool {
-    let _ = database_url();
-    connect_pool(database_url())
+    let url = database_url();
+    let pool = connect_pool(&url).await.unwrap_or_else(|err| {
+        panic!(
+            "connect to test postgres failed ({err}). Start local DB with \
+             `docker compose up -d` from the repo root, or set DATABASE_URL."
+        )
+    });
+
+    let lock = MIGRATIONS.get_or_init(|| Mutex::new(()));
+    let _guard = lock.lock().await;
+    run_migrations(&pool)
         .await
-        .expect("connect pool for test")
+        .expect("run migrations on test postgres");
+
+    pool
 }
 
 /// Router bound to a pool on the current test runtime.

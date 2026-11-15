@@ -33,6 +33,8 @@ cargo run
 
 Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
 
+Backend `cargo test` uses the same Compose Postgres (`DATABASE_URL`); start it with `docker compose up -d` first (the factory `quality-tests` gate starts Compose when Docker is available).
+
 ## Endpoints
 
 ### `GET /health`
