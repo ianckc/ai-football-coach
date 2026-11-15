@@ -271,3 +271,85 @@ async fn login_post_rejects_missing_or_invalid_email_or_password() {
         );
     }
 }
+
+/// Acceptance slice (#33): Reject unknown email or wrong password with `401`
+/// and a JSON error body (same error shape for both — do not reveal which failed).
+#[tokio::test]
+async fn login_post_rejects_unknown_email_or_wrong_password_with_same_401_shape() {
+    let app = common::test_app().await;
+    let email = unique_email("login-auth");
+    let password = "secret123";
+
+    let created = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        created.status(),
+        StatusCode::CREATED,
+        "setup: POST /accounts must create the account used for wrong-password case"
+    );
+
+    let cases = [
+        (
+            format!(r#"{{"email":"unknown-{}@example.com","password":"{password}"}}"#, Uuid::new_v4()),
+            "unknown email",
+        ),
+        (
+            format!(r#"{{"email":"{email}","password":"wrong-password"}}"#),
+            "wrong password",
+        ),
+    ];
+
+    let mut bodies = Vec::new();
+
+    for (body, label) in &cases {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.clone()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "POST /login must return 401 for {label}"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| panic!("POST /login must return a JSON error body for {label}"));
+        assert!(
+            json.is_object(),
+            "POST /login error body must be a JSON object for {label}"
+        );
+        bodies.push(json);
+    }
+
+    assert_eq!(
+        bodies[0], bodies[1],
+        "unknown email and wrong password must share the same 401 error shape (do not reveal which failed)"
+    );
+}
