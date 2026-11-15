@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 
 export const Route = createFileRoute('/accounts/create')({
   component: CreateAccount,
@@ -9,6 +9,8 @@ const backendBaseUrl =
   import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://127.0.0.1:8000'
 
 function CreateAccount() {
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null)
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
@@ -20,6 +22,14 @@ function CreateAccount() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
+      .then(async (response) => {
+        if (response.status !== 201) {
+          return
+        }
+        const body = (await response.json()) as { email: string }
+        setCreatedEmail(body.email)
+      })
+      .catch(() => {})
   }
 
   return (
@@ -41,6 +51,9 @@ function CreateAccount() {
         </label>
         <button type="submit">Create account</button>
       </form>
+      {createdEmail ? (
+        <p>Account created successfully for {createdEmail}</p>
+      ) : null}
     </main>
   )
 }
