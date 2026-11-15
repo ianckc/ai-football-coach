@@ -65,6 +65,8 @@ Starts the frontend at [http://localhost:3000](http://localhost:3000).
 To exercise `/health` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health). Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
 ### Tests
 
+TypeScript Vitest acceptance checks live under `frontend/tests/`.
+
 ```bash
 cd frontend
 npm test -- --run
