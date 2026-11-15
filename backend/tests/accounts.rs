@@ -369,6 +369,53 @@ async fn accounts_post_rejects_whitespace_only_password() {
     );
 }
 
+/// Acceptance slice (#16): Reject passwords shorter than 8 characters with `400`
+/// and a JSON error body.
+#[tokio::test]
+async fn accounts_post_rejects_password_shorter_than_8_characters() {
+    let cases = [
+        (r#"{"email":"coach@example.com","password":"short12"}"#, "7-char password"),
+        (r#"{"email":"coach@example.com","password":"1234567"}"#, "7-digit password"),
+        (r#"{"email":"coach@example.com","password":"a"}"#, "1-char password"),
+    ];
+
+    for (body, label) in cases {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/accounts")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "POST /accounts must return 400 for password shorter than 8 characters ({label})"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_else(|_| {
+            panic!(
+                "POST /accounts must return a JSON error body for password shorter than 8 ({label})"
+            )
+        });
+        assert!(
+            json.is_object(),
+            "POST /accounts short-password error body must be a JSON object for {label}"
+        );
+    }
+}
+
 /// Acceptance slice: Normalize email for uniqueness (e.g. lowercase) so
 /// `Coach@example.com` and `coach@example.com` collide as the same account (`409`).
 #[tokio::test]
