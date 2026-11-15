@@ -11,6 +11,11 @@ Append a short note after each finished `run-ticket` run.
 - Machine fixes (prompts/gates/docs):
 ```
 
+### 2026-11-15 — ianckc/ai-football-coach#33
+- Rounds: 5
+- Outcome: Added `POST /login` (email/password JSON → `200` `{id,email,token}` on success; `400` shape errors; identical `401` for unknown email / wrong password). Review: no critical/high. `.force-red` absent.
+- Machine fixes (prompts/gates/docs): AGENTS.md product surface updated (login route); `backend-api.mdx` login docs still deferred from update-docs pause (medium finding noted).
+
 ### 2026-11-15 — ianckc/ai-football-coach#16
 - Rounds: 4
 - Outcome: Hardened `POST /accounts` password handling (min length 8 after trim; Argon2 hashing via `spawn_blocking`; existing empty/whitespace reject retained). Review: no critical/high. Docs updated for 8-char rule. `.force-red` absent.
