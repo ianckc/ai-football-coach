@@ -13,6 +13,7 @@ pub enum CreateAccountError {
 }
 
 pub enum LoginError {
+    InvalidInput,
     Unauthorized,
     Internal,
 }
@@ -109,12 +110,22 @@ pub async fn create(
 }
 
 /// Look up an account by email and verify the password against the stored argon2 hash.
+///
+/// `email` and `password` are raw JSON values from the request body (or absent).
 pub async fn login(
     pool: &PgPool,
-    email: &str,
-    password: &str,
+    email: Option<&Value>,
+    password: Option<&Value>,
 ) -> Result<LoginSession, LoginError> {
-    let email = email.trim().to_ascii_lowercase();
+    let email = json_string_field(email)
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let password = json_string_field(password).unwrap_or("");
+
+    if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
+        return Err(LoginError::InvalidInput);
+    }
 
     let row = sqlx::query_as::<_, (Uuid, String, String)>(
         r"
