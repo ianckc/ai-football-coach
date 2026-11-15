@@ -54,6 +54,8 @@ npm run dev
 ```
 ## Tests
 
+Acceptance checks are TypeScript Vitest files under `frontend/tests/`.
+
 ```bash
 cd frontend
 npm test -- --run
@@ -87,4 +89,4 @@ npm run typecheck      # tsc --noEmit
 | `frontend/src/routes/index.tsx` | Root (`/`) page |
 | `frontend/src/routes/health.tsx` | `/health` page (calls backend `GET /health`) |
 | `frontend/src/router.tsx` | Router factory |
-| `frontend/tests/` | Acceptance-style Vitest checks for the scaffold |
+| `frontend/tests/` | TypeScript Vitest acceptance checks for the scaffold |
