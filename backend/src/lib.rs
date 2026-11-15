@@ -1,57 +1,15 @@
-use argon2::{
-    Argon2,
-    password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
-};
+mod accounts;
+mod routes;
+mod state;
+
 use axum::{
-    Json, Router,
-    extract::State,
-    http::{HeaderValue, Method, StatusCode},
-    response::IntoResponse,
-    routing::{get, post},
+    Router,
+    http::{HeaderValue, Method},
 };
-use serde::Deserialize;
-use serde_json::{Value, json};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
+use state::AppState;
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use uuid::Uuid;
-
-#[derive(Clone)]
-struct AppState {
-    pool: PgPool,
-}
-
-#[derive(Deserialize)]
-struct CreateAccountRequest {
-    email: Option<Value>,
-    password: Option<Value>,
-}
-
-fn is_valid_email(email: &str) -> bool {
-    let Some((local, domain)) = email.split_once('@') else {
-        return false;
-    };
-    !local.is_empty() && !domain.is_empty() && domain.contains('.')
-}
-
-/// String fields only; wrong JSON types, null, and missing are treated as absent.
-fn json_string_field(value: Option<&Value>) -> Option<&str> {
-    match value {
-        Some(Value::String(s)) => Some(s.as_str()),
-        _ => None,
-    }
-}
-
-fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
-    let salt = SaltString::generate(&mut OsRng);
-    Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
-        .map(|hash| hash.to_string())
-}
-
-fn error_json(status: StatusCode, message: &str) -> axum::response::Response {
-    (status, Json(json!({ "error": message }))).into_response()
-}
 
 /// Connect to Postgres using `DATABASE_URL` (or any Postgres URL).
 ///
@@ -73,64 +31,6 @@ pub async fn connect_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
 /// Returns an error if a migration fails to apply.
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!("./migrations").run(pool).await
-}
-
-async fn health() -> Json<Value> {
-    Json(json!({ "status": "ok" }))
-}
-
-async fn create_account(
-    State(state): State<AppState>,
-    Json(body): Json<CreateAccountRequest>,
-) -> impl IntoResponse {
-    let email = json_string_field(body.email.as_ref())
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
-    let password = json_string_field(body.password.as_ref())
-        .unwrap_or("")
-        .trim();
-
-    if email.is_empty() || !is_valid_email(&email) || password.chars().count() < 8 {
-        return error_json(StatusCode::BAD_REQUEST, "invalid email or password");
-    }
-
-    let password = password.to_owned();
-    let hash_result = tokio::task::spawn_blocking(move || hash_password(&password)).await;
-    let Ok(Ok(password_hash)) = hash_result else {
-        return error_json(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "failed to create account",
-        );
-    };
-
-    let id = Uuid::new_v4();
-    let inserted = sqlx::query_scalar::<_, Uuid>(
-        r"
-        INSERT INTO accounts (id, email, password_hash)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (email) DO NOTHING
-        RETURNING id
-        ",
-    )
-    .bind(id)
-    .bind(&email)
-    .bind(&password_hash)
-    .fetch_optional(&state.pool)
-    .await;
-
-    match inserted {
-        Ok(Some(created_id)) => (
-            StatusCode::CREATED,
-            Json(json!({ "id": created_id.to_string(), "email": email })),
-        )
-            .into_response(),
-        Ok(None) => error_json(StatusCode::CONFLICT, "email already exists"),
-        Err(_) => error_json(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "failed to create account",
-        ),
-    }
 }
 
 /// Parse comma-separated CORS origins. Empty/unset/invalid input falls back to
@@ -176,9 +76,7 @@ pub fn app(pool: PgPool) -> Router {
 pub fn app_with_cors_origins(pool: PgPool, origins: Vec<HeaderValue>) -> Router {
     let state = AppState { pool };
 
-    Router::new()
-        .route("/health", get(health))
-        .route("/accounts", post(create_account))
+    routes::router()
         .layer(local_dev_cors(origins))
         .with_state(state)
 }
