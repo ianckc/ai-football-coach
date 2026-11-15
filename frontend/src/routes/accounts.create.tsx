@@ -10,9 +10,13 @@ const backendBaseUrl =
 
 function CreateAccount() {
   const [createdEmail, setCreatedEmail] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setCreatedEmail(null)
+    setError(null)
+
     const formData = new FormData(event.currentTarget)
     const email = String(formData.get('email') ?? '')
     const password = String(formData.get('password') ?? '')
@@ -23,13 +27,16 @@ function CreateAccount() {
       body: JSON.stringify({ email, password }),
     })
       .then(async (response) => {
-        if (response.status !== 201) {
+        if (response.status === 201) {
+          const body = (await response.json()) as { email: string }
+          setCreatedEmail(body.email)
           return
         }
-        const body = (await response.json()) as { email: string }
-        setCreatedEmail(body.email)
+        setError('Unable to create account')
       })
-      .catch(() => {})
+      .catch(() => {
+        setError('Backend unavailable')
+      })
   }
 
   return (
@@ -54,6 +61,7 @@ function CreateAccount() {
       {createdEmail ? (
         <p>Account created successfully for {createdEmail}</p>
       ) : null}
+      {error ? <p>{error}</p> : null}
     </main>
   )
 }
