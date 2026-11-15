@@ -5,30 +5,12 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use tower::ServiceExt;
+use uuid::{Uuid, Variant, Version};
 
 fn is_uuid_v4(value: &str) -> bool {
-    let parts: Vec<&str> = value.split('-').collect();
-    if parts.len() != 5
-        || parts[0].len() != 8
-        || parts[1].len() != 4
-        || parts[2].len() != 4
-        || parts[3].len() != 4
-        || parts[4].len() != 12
-    {
-        return false;
-    }
-    if !parts
-        .iter()
-        .all(|part| part.chars().all(|c| c.is_ascii_hexdigit()))
-    {
-        return false;
-    }
-    // Version nibble must be 4; RFC 4122 variant nibble must be 8, 9, a, or b.
-    parts[2].starts_with('4')
-        && matches!(
-            parts[3].chars().next(),
-            Some('8' | '9' | 'a' | 'b' | 'A' | 'B')
-        )
+    Uuid::parse_str(value).is_ok_and(|id| {
+        id.get_version() == Some(Version::Random) && id.get_variant() == Variant::RFC4122
+    })
 }
 
 /// Acceptance slice: Add `POST /accounts`.
@@ -440,8 +422,7 @@ fn create_account_maps_accounts_mutex_poison_to_500_without_panic() {
     let handler_end = handler[1..]
         .find("\nasync fn ")
         .or_else(|| handler[1..].find("\nfn "))
-        .map(|i| i + 1)
-        .unwrap_or(handler.len());
+        .map_or(handler.len(), |i| i + 1);
     let handler = &handler[..handler_end];
 
     assert!(
@@ -468,6 +449,33 @@ fn create_account_maps_accounts_mutex_poison_to_500_without_panic() {
     );
 }
 
+/// Acceptance slice (#31): Tokio features are narrowed from `full`.
+#[test]
+fn cargo_toml_narrows_tokio_features_from_full() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let manifest = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+
+    let tokio_line = manifest.lines().find(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("tokio") && trimmed.contains("features")
+    });
+    let tokio_line = tokio_line.unwrap_or_else(|| {
+        panic!("backend Cargo.toml must declare a tokio dependency with features")
+    });
+
+    assert!(
+        !tokio_line.contains("\"full\"") && !tokio_line.contains("'full'"),
+        "tokio features must be narrowed from full; got: {tokio_line}"
+    );
+    assert!(
+        tokio_line.contains("macros")
+            && tokio_line.contains("rt-multi-thread")
+            && tokio_line.contains("net"),
+        "tokio must keep the minimal features needed (macros, rt-multi-thread, net); got: {tokio_line}"
+    );
+}
+
 /// Acceptance slice (#16): Run password hashing off the async runtime (e.g.
 /// `spawn_blocking`) so Argon2 does not block Axum workers.
 #[test]
@@ -483,8 +491,7 @@ fn create_account_runs_password_hashing_off_async_runtime() {
     let handler_end = handler[1..]
         .find("\nasync fn ")
         .or_else(|| handler[1..].find("\nfn "))
-        .map(|i| i + 1)
-        .unwrap_or(handler.len());
+        .map_or(handler.len(), |i| i + 1);
     let handler = &handler[..handler_end];
 
     assert!(
