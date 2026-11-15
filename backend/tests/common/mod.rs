@@ -2,7 +2,7 @@ use ai_football_coach_backend::{app, connect_pool, run_migrations};
 use axum::Router;
 use sqlx::PgPool;
 use std::sync::OnceLock;
-use testcontainers::{ContainerAsync, runners::AsyncRunner};
+use testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
 use tokio::runtime::Runtime;
 
@@ -26,7 +26,9 @@ fn database_url() -> &'static str {
         // `block_on` must not run on a thread already inside a tokio test runtime.
         std::thread::spawn(|| {
             shared_runtime().block_on(async {
+                // Match local Compose major (postgres:18); module default is still 11-alpine.
                 let container = Postgres::default()
+                    .with_tag("18-alpine")
                     .start()
                     .await
                     .expect("start postgres testcontainer");
