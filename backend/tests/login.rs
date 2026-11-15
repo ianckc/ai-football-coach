@@ -302,7 +302,10 @@ async fn login_post_rejects_unknown_email_or_wrong_password_with_same_401_shape(
 
     let cases = [
         (
-            format!(r#"{{"email":"unknown-{}@example.com","password":"{password}"}}"#, Uuid::new_v4()),
+            format!(
+                r#"{{"email":"unknown-{}@example.com","password":"{password}"}}"#,
+                Uuid::new_v4()
+            ),
             "unknown email",
         ),
         (
