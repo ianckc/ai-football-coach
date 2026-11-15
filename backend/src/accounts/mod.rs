@@ -1,6 +1,6 @@
 use argon2::{
     Argon2,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+    password_hash::{PasswordHasher, PasswordVerifier},
 };
 use serde_json::Value;
 use sqlx::PgPool;
@@ -45,18 +45,14 @@ fn json_string_field(value: Option<&Value>) -> Option<&str> {
 }
 
 fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
-    let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password(password.as_bytes())
         .map(|hash| hash.to_string())
 }
 
 fn verify_password(password: &str, password_hash: &str) -> bool {
-    let Ok(parsed) = PasswordHash::new(password_hash) else {
-        return false;
-    };
     Argon2::default()
-        .verify_password(password.as_bytes(), &parsed)
+        .verify_password(password.as_bytes(), password_hash)
         .is_ok()
 }
 
