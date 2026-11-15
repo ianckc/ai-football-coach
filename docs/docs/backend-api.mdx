@@ -38,14 +38,14 @@ Create a coach account. Passwords are hashed with argon2 before storage. The cur
 ```json
 {
   "email": "coach@example.com",
-  "password": "secret"
+  "password": "secret123"
 }
 ```
 
 | Field | Rules |
 |-------|--------|
 | `email` | Required non-empty string after trim; normalized to lowercase for uniqueness; must look like `local@domain.tld` (domain contains a `.`) |
-| `password` | Required non-empty string after trim |
+| `password` | Required string after trim; at least 8 characters (empty, whitespace-only, and shorter passwords are rejected) |
 
 **Success:** `201 Created`
 
@@ -64,7 +64,7 @@ Create a coach account. Passwords are hashed with argon2 before storage. The cur
 
 | Status | When | Body shape |
 |--------|------|------------|
-| `400` | Missing, empty, wrong JSON type, or invalid email or password | JSON object (e.g. `{ "error": "…" }`) |
+| `400` | Missing, empty, wrong JSON type, invalid email, or password empty/whitespace-only/shorter than 8 characters after trim | JSON object (e.g. `{ "error": "…" }`) |
 | `409` | Email already registered (after lowercase normalization; `Coach@example.com` and `coach@example.com` collide) | JSON object (e.g. `{ "error": "…" }`) |
 | `415` | Body is not JSON | (non-JSON content type) |
 
@@ -73,5 +73,5 @@ Create a coach account. Passwords are hashed with argon2 before storage. The cur
 ```bash
 curl -sS -X POST http://127.0.0.1:8000/accounts \
   -H 'Content-Type: application/json' \
-  -d '{"email":"coach@example.com","password":"secret"}'
+  -d '{"email":"coach@example.com","password":"secret123"}'
 ```
