@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "tsc --noEmit"
