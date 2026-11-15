@@ -30,7 +30,7 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
