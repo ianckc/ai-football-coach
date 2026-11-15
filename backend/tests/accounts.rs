@@ -1,3 +1,5 @@
+mod common;
+
 use ai_football_coach_backend::app;
 use axum::{
     body::Body,
@@ -13,10 +15,15 @@ fn is_uuid_v4(value: &str) -> bool {
     })
 }
 
+fn unique_email(prefix: &str) -> String {
+    format!("{prefix}-{}@example.com", Uuid::new_v4())
+}
+
 /// Acceptance slice: Add `POST /accounts`.
 #[tokio::test]
 async fn accounts_post_endpoint_exists() {
-    let response = app()
+    let response = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -42,15 +49,17 @@ async fn accounts_post_endpoint_exists() {
 /// Acceptance slice: Accept JSON body `{ "email": string, "password": string }`.
 #[tokio::test]
 async fn accounts_post_accepts_email_password_json() {
-    let accepted = app()
+    let email = unique_email("accept");
+    let accepted = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/accounts")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{"email":"coach@example.com","password":"secret123"}"#,
-                ))
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"secret123"}}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -73,15 +82,16 @@ async fn accounts_post_accepts_email_password_json() {
     );
 
     // Proves JSON acceptance is wired: non-JSON content types must not be treated as that body.
-    let rejected = app()
+    let rejected = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/accounts")
                 .header("content-type", "text/plain")
-                .body(Body::from(
-                    r#"{"email":"coach@example.com","password":"secret123"}"#,
-                ))
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"secret123"}}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -98,8 +108,9 @@ async fn accounts_post_accepts_email_password_json() {
 /// where `id` is a UUID v4 string (never return the password).
 #[tokio::test]
 async fn accounts_post_returns_201_with_id_and_email() {
-    let email = "coach@example.com";
-    let response = app()
+    let email = unique_email("created");
+    let response = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -133,7 +144,7 @@ async fn accounts_post_returns_201_with_id_and_email() {
         .expect("POST /accounts success body must be a JSON object");
     assert_eq!(
         obj.get("email").and_then(|v| v.as_str()),
-        Some(email),
+        Some(email.as_str()),
         "success body must include the account email"
     );
     let id = obj
@@ -165,7 +176,8 @@ async fn accounts_post_rejects_missing_or_invalid_email_or_password() {
     ];
 
     for (body, label) in cases {
-        let response = app()
+        let response = common::test_app()
+            .await
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -219,7 +231,8 @@ async fn accounts_post_rejects_wrong_json_field_types_with_400() {
     ];
 
     for (body, label) in cases {
-        let response = app()
+        let response = common::test_app()
+            .await
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -260,8 +273,9 @@ async fn accounts_post_rejects_wrong_json_field_types_with_400() {
 /// Acceptance slice: Reject a duplicate email with `409` and a JSON error body.
 #[tokio::test]
 async fn accounts_post_rejects_duplicate_email() {
-    let app = app();
-    let body = r#"{"email":"duplicate@example.com","password":"secret123"}"#;
+    let app = common::test_app().await;
+    let email = unique_email("duplicate");
+    let body = format!(r#"{{"email":"{email}","password":"secret123"}}"#);
 
     let first = app
         .clone()
@@ -270,7 +284,7 @@ async fn accounts_post_rejects_duplicate_email() {
                 .method("POST")
                 .uri("/accounts")
                 .header("content-type", "application/json")
-                .body(Body::from(body))
+                .body(Body::from(body.clone()))
                 .unwrap(),
         )
         .await
@@ -317,7 +331,8 @@ async fn accounts_post_rejects_duplicate_email() {
 /// check) with `400` and a JSON error body.
 #[tokio::test]
 async fn accounts_post_rejects_whitespace_only_password() {
-    let response = app()
+    let response = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -371,7 +386,8 @@ async fn accounts_post_rejects_password_shorter_than_8_characters() {
     ];
 
     for (body, label) in cases {
-        let response = app()
+        let response = common::test_app()
+            .await
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -405,48 +421,6 @@ async fn accounts_post_rejects_password_shorter_than_8_characters() {
             "POST /accounts short-password error body must be a JSON object for {label}"
         );
     }
-}
-
-/// Acceptance slice (#31): Mutex poison / lock failure returns `500` with a
-/// JSON error body instead of panicking the worker.
-#[test]
-fn create_account_maps_accounts_mutex_poison_to_500_without_panic() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
-    let src = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
-
-    let handler_start = src
-        .find("async fn create_account")
-        .expect("create_account handler must exist");
-    let handler = &src[handler_start..];
-    let handler_end = handler[1..]
-        .find("\nasync fn ")
-        .or_else(|| handler[1..].find("\nfn "))
-        .map_or(handler.len(), |i| i + 1);
-    let handler = &handler[..handler_end];
-
-    assert!(
-        handler.contains(".lock()"),
-        "create_account must still lock the accounts mutex"
-    );
-    assert!(
-        !handler.contains(".lock().expect(") && !handler.contains(".lock().unwrap("),
-        "create_account must not panic on a poisoned accounts mutex via lock().expect/unwrap"
-    );
-    assert!(
-        !handler.contains("into_inner()"),
-        "create_account must not silently recover a poisoned accounts mutex via into_inner; return 500 + JSON error instead"
-    );
-
-    let lock_idx = handler
-        .find(".lock()")
-        .expect("create_account must call lock()");
-    let end = (lock_idx + 400).min(handler.len());
-    let lock_region = &handler[lock_idx..end];
-    assert!(
-        lock_region.contains("INTERNAL_SERVER_ERROR") || lock_region.contains("error_json"),
-        "accounts mutex lock failure must map to 500 + JSON error body (error_json / INTERNAL_SERVER_ERROR near lock)"
-    );
 }
 
 /// Acceptance slice (#31): Tokio features are narrowed from `full`.
@@ -508,7 +482,10 @@ fn create_account_runs_password_hashing_off_async_runtime() {
 /// `Coach@example.com` and `coach@example.com` collide as the same account (`409`).
 #[tokio::test]
 async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
-    let app = app();
+    let app = common::test_app().await;
+    let id = Uuid::new_v4();
+    let mixed_email = format!("Coach-{id}@example.com");
+    let lower_email = format!("coach-{id}@example.com");
 
     let first = app
         .clone()
@@ -517,9 +494,9 @@ async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
                 .method("POST")
                 .uri("/accounts")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{"email":"Coach@example.com","password":"secret123"}"#,
-                ))
+                .body(Body::from(format!(
+                    r#"{{"email":"{mixed_email}","password":"secret123"}}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -527,7 +504,7 @@ async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
     assert_eq!(
         first.status(),
         StatusCode::CREATED,
-        "first POST /accounts with Coach@example.com must succeed"
+        "first POST /accounts with mixed-case email must succeed"
     );
 
     let second = app
@@ -536,9 +513,9 @@ async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
                 .method("POST")
                 .uri("/accounts")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{"email":"coach@example.com","password":"other-secret"}"#,
-                ))
+                .body(Body::from(format!(
+                    r#"{{"email":"{lower_email}","password":"other-secret"}}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -561,6 +538,52 @@ async fn accounts_post_rejects_duplicate_email_differing_only_by_case() {
     assert!(
         json.is_object(),
         "POST /accounts case-duplicate email error body must be a JSON object"
+    );
+}
+
+/// Acceptance slice (#35): Account rows persist in Postgres across app rebuild
+/// (same database, new Router/pool handle — not process-local memory).
+#[tokio::test]
+async fn accounts_persist_across_app_rebuild() {
+    let email = unique_email("persist");
+    let body = format!(r#"{{"email":"{email}","password":"secret123"}}"#);
+
+    let first_app = common::test_app().await;
+    let created = first_app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(body.clone()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        created.status(),
+        StatusCode::CREATED,
+        "initial POST /accounts must succeed"
+    );
+
+    // New Router from the same DB pool — simulates surviving process-local state loss.
+    let rebuilt = app(common::test_pool().await);
+    let duplicate = rebuilt
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        duplicate.status(),
+        StatusCode::CONFLICT,
+        "duplicate email must still 409 after rebuilding the app against the same Postgres"
     );
 }
 
