@@ -29,14 +29,16 @@ The Axum API lives in [`backend/`](backend/). It persists accounts in Postgres v
 
 ### Local Postgres
 
+Compose runs two local Postgres services: `postgres` on port `5432` for manual `cargo run` (named volume), and `postgres-test` on `5433` for `cargo test` / factory gates (disposable). See [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
+
 ```bash
 docker compose up -d
 cd backend
-cp .env.example .env   # sets DATABASE_URL for local Compose
+cp .env.example .env   # sets DATABASE_URL for manual-dev postgres :5432
 cargo run
 ```
 
-Migrations under `backend/migrations/` run automatically on startup. Production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon). Details: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
+Migrations under `backend/migrations/` run automatically on startup. Production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon).
 
 ## Frontend
 
