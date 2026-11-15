@@ -1,6 +1,14 @@
-use axum::http::StatusCode;
+use axum::{Json, http::StatusCode};
+use serde::Deserialize;
 
-/// Stub `POST /login` handler — route exists; credential handling comes in later slices.
-pub async fn login() -> StatusCode {
-    StatusCode::BAD_REQUEST
+#[derive(Deserialize)]
+pub struct LoginRequest {
+    email: String,
+    password: String,
+}
+
+/// Accepts JSON `{ email, password }`. Credential checks / token response come later.
+pub async fn login(Json(body): Json<LoginRequest>) -> StatusCode {
+    let _ = (body.email, body.password);
+    StatusCode::OK
 }
