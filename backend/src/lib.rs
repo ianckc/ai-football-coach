@@ -1,7 +1,4 @@
-use argon2::{
-    Argon2,
-    password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
-};
+use argon2::{Argon2, password_hash::PasswordHasher};
 use axum::{
     Json, Router,
     extract::State,
@@ -43,9 +40,8 @@ fn json_string_field(value: Option<&Value>) -> Option<&str> {
 }
 
 fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
-    let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password(password.as_bytes())
         .map(|hash| hash.to_string())
 }
 
