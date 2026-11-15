@@ -31,6 +31,8 @@ cargo run
 
 `DATABASE_URL` is required (from the environment or `backend/.env`). Copy from `backend/.env.example`. Do not commit real credentials; Compose passwords are for local use only.
 
+Optional local CORS: set `CORS_ALLOWED_ORIGINS` (comma-separated browser origins) when the frontend is not on port 3000. Defaults are `http://localhost:3000` and `http://127.0.0.1:3000`. This does not change the `GET /health` response contract.
+
 Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
 
 Backend `cargo test` uses the same Compose Postgres (`DATABASE_URL`); start it with `docker compose up -d` first (the factory `quality-tests` gate starts Compose when Docker is available).
