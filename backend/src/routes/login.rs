@@ -32,7 +32,9 @@ pub async fn login(
         Err(LoginError::InvalidInput) => {
             error_json(StatusCode::BAD_REQUEST, "invalid email or password")
         }
-        Err(LoginError::Unauthorized) => StatusCode::UNAUTHORIZED.into_response(),
+        Err(LoginError::Unauthorized) => {
+            error_json(StatusCode::UNAUTHORIZED, "invalid email or password")
+        }
         Err(LoginError::Internal) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
