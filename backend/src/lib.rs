@@ -92,7 +92,15 @@ async fn create_account(
     };
 
     let id = Uuid::new_v4().to_string();
-    let mut accounts = state.accounts.lock().expect("accounts lock");
+    let mut accounts = match state.accounts.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return error_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to create account",
+            );
+        }
+    };
 
     if accounts.contains_key(&email) {
         return error_json(StatusCode::CONFLICT, "email already exists");
