@@ -14,9 +14,7 @@ describe('create account form', () => {
   })
 
   it('shows a form with email and password fields and a submit control', () => {
-    expect(CreateAccount, 'create-account route must define a component').toBeTypeOf(
-      'function',
-    )
+    expect(CreateAccount, 'create-account route must define a component').toBeTypeOf('function')
 
     render(<CreateAccount />)
 

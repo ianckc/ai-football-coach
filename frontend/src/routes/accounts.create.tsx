@@ -5,8 +5,7 @@ export const Route = createFileRoute('/accounts/create')({
   component: CreateAccount,
 })
 
-const backendBaseUrl =
-  import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://127.0.0.1:8000'
+const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://127.0.0.1:8000'
 
 function CreateAccount() {
   const [createdEmail, setCreatedEmail] = useState<string | null>(null)
@@ -49,18 +48,11 @@ function CreateAccount() {
         </label>
         <label htmlFor="password">
           Password
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-          />
+          <input id="password" name="password" type="password" autoComplete="new-password" />
         </label>
         <button type="submit">Create account</button>
       </form>
-      {createdEmail ? (
-        <p>Account created successfully for {createdEmail}</p>
-      ) : null}
+      {createdEmail ? <p>Account created successfully for {createdEmail}</p> : null}
       {error ? <p>{error}</p> : null}
     </main>
   )

@@ -17,9 +17,7 @@ describe('create account submit', () => {
   })
 
   it('on submit POSTs JSON email and password to /accounts using the backend base URL', async () => {
-    expect(CreateAccount, 'create-account route must define a component').toBeTypeOf(
-      'function',
-    )
+    expect(CreateAccount, 'create-account route must define a component').toBeTypeOf('function')
 
     const fetchMock = vi.fn(() =>
       Promise.resolve(

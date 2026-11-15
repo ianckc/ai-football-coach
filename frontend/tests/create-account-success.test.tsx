@@ -17,9 +17,7 @@ describe('create account success', () => {
   })
 
   it('shows a success state with the created account email and not the password', async () => {
-    expect(CreateAccount, 'create-account route must define a component').toBeTypeOf(
-      'function',
-    )
+    expect(CreateAccount, 'create-account route must define a component').toBeTypeOf('function')
 
     const email = 'coach@example.com'
     const password = 'secret123'

@@ -5,9 +5,7 @@ import { Route } from '../src/routes/accounts.create'
 const CreateAccount = Route.options.component
 
 async function submitCreateAccountForm() {
-  expect(CreateAccount, 'create-account route must define a component').toBeTypeOf(
-    'function',
-  )
+  expect(CreateAccount, 'create-account route must define a component').toBeTypeOf('function')
 
   render(<CreateAccount />)
 

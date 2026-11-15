@@ -13,15 +13,15 @@ type RouteCandidate = {
 const candidates: RouteCandidate[] = [
   {
     path: join(frontendRoot, 'src/routes/accounts.create.tsx'),
-    fileRoute: "/accounts/create",
+    fileRoute: '/accounts/create',
   },
   {
     path: join(frontendRoot, 'src/routes/accounts/create.tsx'),
-    fileRoute: "/accounts/create",
+    fileRoute: '/accounts/create',
   },
   {
     path: join(frontendRoot, 'src/routes/create-account.tsx'),
-    fileRoute: "/create-account",
+    fileRoute: '/create-account',
   },
 ]
 
