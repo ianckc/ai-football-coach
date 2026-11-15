@@ -4,6 +4,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use http_body_util::BodyExt;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -115,5 +116,105 @@ async fn login_post_accepts_email_password_json() {
         rejected.status(),
         StatusCode::UNSUPPORTED_MEDIA_TYPE,
         "POST /login must accept application/json bodies (reject non-JSON content types)"
+    );
+}
+
+/// Acceptance slice (#33): On success (valid credentials), return `200` with
+/// `{ "id": string, "email": string, "token": string }` where `id` and `email`
+/// match the account and `token` is a non-empty opaque session token (never
+/// return the password).
+#[tokio::test]
+async fn login_post_returns_200_with_id_email_and_token() {
+    let app = common::test_app().await;
+    let email = unique_email("login-success");
+    let password = "secret123";
+
+    let created = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        created.status(),
+        StatusCode::CREATED,
+        "setup: POST /accounts must create the account used for login"
+    );
+
+    let created_body = created
+        .into_body()
+        .collect()
+        .await
+        .expect("read create body")
+        .to_bytes();
+    let created_json: serde_json::Value =
+        serde_json::from_slice(&created_body).expect("setup: create must return JSON");
+    let account_id = created_json
+        .get("id")
+        .and_then(|v| v.as_str())
+        .expect("setup: create must return id")
+        .to_owned();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/login")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "POST /login must return 200 on success"
+    );
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("POST /login must return JSON");
+
+    let obj = json
+        .as_object()
+        .expect("POST /login success body must be a JSON object");
+    assert_eq!(
+        obj.get("id").and_then(|v| v.as_str()),
+        Some(account_id.as_str()),
+        "success body id must match the account"
+    );
+    assert_eq!(
+        obj.get("email").and_then(|v| v.as_str()),
+        Some(email.as_str()),
+        "success body email must match the account"
+    );
+    let token = obj
+        .get("token")
+        .and_then(|v| v.as_str())
+        .expect("success body must include token as a string");
+    assert!(
+        !token.is_empty(),
+        "token must be a non-empty opaque session token"
+    );
+    assert!(
+        !obj.contains_key("password"),
+        "success body must never return the password"
     );
 }
