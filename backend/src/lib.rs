@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -133,22 +133,88 @@ async fn create_account(
     }
 }
 
-fn local_dev_cors() -> CorsLayer {
+/// Parse comma-separated CORS origins. Empty/unset/invalid input falls back to
+/// Vite defaults on port 3000 (`localhost` and `127.0.0.1`).
+pub fn parse_cors_origins(raw: Option<&str>) -> Vec<HeaderValue> {
+    const DEFAULTS: &[&str] = &["http://localhost:3000", "http://127.0.0.1:3000"];
+
+    let parsed: Vec<HeaderValue> = raw
+        .into_iter()
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .filter(|origin| !origin.is_empty())
+        .filter_map(|origin| HeaderValue::from_str(origin).ok())
+        .collect();
+
+    if parsed.is_empty() {
+        DEFAULTS
+            .iter()
+            .map(|origin| HeaderValue::from_static(origin))
+            .collect()
+    } else {
+        parsed
+    }
+}
+
+fn cors_origins_from_env() -> Vec<HeaderValue> {
+    parse_cors_origins(std::env::var("CORS_ALLOWED_ORIGINS").ok().as_deref())
+}
+
+fn local_dev_cors(origins: Vec<HeaderValue>) -> CorsLayer {
     CorsLayer::new()
-        .allow_origin([
-            HeaderValue::from_static("http://localhost:3000"),
-            HeaderValue::from_static("http://127.0.0.1:3000"),
-        ])
+        .allow_origin(AllowOrigin::list(origins))
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::ACCEPT])
 }
 
+/// Build the HTTP router using `CORS_ALLOWED_ORIGINS` when set.
 pub fn app(pool: PgPool) -> Router {
+    app_with_cors_origins(pool, cors_origins_from_env())
+}
+
+/// Build the HTTP router with an explicit CORS allowlist (for tests).
+pub fn app_with_cors_origins(pool: PgPool, origins: Vec<HeaderValue>) -> Router {
     let state = AppState { pool };
 
     Router::new()
         .route("/health", get(health))
         .route("/accounts", post(create_account))
-        .layer(local_dev_cors())
+        .layer(local_dev_cors(origins))
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_cors_origins;
+    use axum::http::HeaderValue;
+
+    #[test]
+    fn parse_cors_origins_defaults_when_unset() {
+        let origins = parse_cors_origins(None);
+        assert_eq!(
+            origins,
+            vec![
+                HeaderValue::from_static("http://localhost:3000"),
+                HeaderValue::from_static("http://127.0.0.1:3000"),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_cors_origins_defaults_when_blank() {
+        let origins = parse_cors_origins(Some("  ,  "));
+        assert_eq!(origins.len(), 2);
+    }
+
+    #[test]
+    fn parse_cors_origins_reads_comma_separated_list() {
+        let origins = parse_cors_origins(Some("http://localhost:5173, http://127.0.0.1:5173"));
+        assert_eq!(
+            origins,
+            vec![
+                HeaderValue::from_static("http://localhost:5173"),
+                HeaderValue::from_static("http://127.0.0.1:5173"),
+            ]
+        );
+    }
 }

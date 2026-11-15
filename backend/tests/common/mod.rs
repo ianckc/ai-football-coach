@@ -36,6 +36,10 @@ pub async fn test_pool() -> PgPool {
 }
 
 /// Router bound to a pool on the current test runtime.
+///
+/// Not every integration binary uses this helper (e.g. CORS tests build a
+/// custom allowlist), so allow unused within those crates.
+#[allow(dead_code)]
 pub async fn test_app() -> Router {
     app(test_pool().await)
 }
