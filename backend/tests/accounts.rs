@@ -454,27 +454,28 @@ fn cargo_toml_narrows_tokio_features_from_full() {
 /// `spawn_blocking`) so Argon2 does not block Axum workers.
 #[test]
 fn create_account_runs_password_hashing_off_async_runtime() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/accounts/mod.rs");
     let src = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
 
-    let handler_start = src
-        .find("async fn create_account")
-        .expect("create_account handler must exist");
-    let handler = &src[handler_start..];
-    let handler_end = handler[1..]
-        .find("\nasync fn ")
-        .or_else(|| handler[1..].find("\nfn "))
-        .map_or(handler.len(), |i| i + 1);
-    let handler = &handler[..handler_end];
+    let create_start = src
+        .find("pub async fn create")
+        .expect("accounts::create domain function must exist");
+    let create_fn = &src[create_start..];
+    let create_end = create_fn[1..]
+        .find("\npub async fn ")
+        .or_else(|| create_fn[1..].find("\nasync fn "))
+        .or_else(|| create_fn[1..].find("\nfn "))
+        .map_or(create_fn.len(), |i| i + 1);
+    let create_fn = &create_fn[..create_end];
 
     assert!(
-        handler.contains("spawn_blocking"),
-        "create_account must run password hashing via spawn_blocking (or equivalent) so Argon2 does not block Axum workers"
+        create_fn.contains("spawn_blocking"),
+        "accounts::create must run password hashing via spawn_blocking (or equivalent) so Argon2 does not block Axum workers"
     );
     assert!(
-        handler.contains("hash_password"),
-        "create_account must still hash passwords (via hash_password) off the async runtime"
+        create_fn.contains("hash_password"),
+        "accounts::create must still hash passwords (via hash_password) off the async runtime"
     );
 }
 

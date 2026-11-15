@@ -37,6 +37,20 @@ Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition
 
 Backend `cargo test` uses the same Compose Postgres (`DATABASE_URL`); start it with `docker compose up -d` first (the factory `quality-tests` gate starts Compose when Docker is available).
 
+## Layout
+
+Source under `backend/src/` is split by concern:
+
+| Path | Responsibility |
+|------|----------------|
+| `lib.rs` | Module tree, CORS, `app` / `app_with_cors_origins`, pool connect + migrations |
+| `main.rs` | Bind and serve (thin binary) |
+| `state.rs` | Shared `AppState` (Postgres pool) |
+| `routes/` | HTTP handlers and route registration (`/health`, `/accounts`) |
+| `accounts/` | Create-account domain logic (validation, password hashing, insert / uniqueness) |
+
+Add new endpoints under `routes/`; keep validation, hashing, and persistence in domain modules (e.g. `accounts/`), not in a monolithic `lib.rs`.
+
 ## Endpoints
 
 ### `GET /health`
