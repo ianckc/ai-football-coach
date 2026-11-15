@@ -11,6 +11,11 @@ Append a short note after each finished `run-ticket` run.
 - Machine fixes (prompts/gates/docs):
 ```
 
+### 2026-11-15 — ianckc/ai-football-coach#16
+- Rounds: 4
+- Outcome: Hardened `POST /accounts` password handling (min length 8 after trim; Argon2 hashing via `spawn_blocking`; existing empty/whitespace reject retained). Review: no critical/high. Docs updated for 8-char rule. `.force-red` absent.
+- Machine fixes (prompts/gates/docs): none; AGENTS.md product surface unchanged (existing accounts route only).
+
 ### 2026-11-14 — ianckc/ai-football-coach#17
 - Rounds: 2
 - Outcome: `frontend/` TanStack Start scaffold; `npm run dev` on :3000; root `/` identifies product; README + `docs/docs/frontend.mdx`; vitest `test` script for `quality-tests`. Review: no critical/high. `.force-red` absent.
