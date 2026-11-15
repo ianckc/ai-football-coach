@@ -78,7 +78,7 @@ async fn create_account(
         .unwrap_or("")
         .trim();
 
-    if email.is_empty() || !is_valid_email(&email) || password.is_empty() {
+    if email.is_empty() || !is_valid_email(&email) || password.chars().count() < 8 {
         return error_json(StatusCode::BAD_REQUEST, "invalid email or password");
     }
 
