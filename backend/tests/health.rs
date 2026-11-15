@@ -1,4 +1,5 @@
-use ai_football_coach_backend::app;
+mod common;
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -9,7 +10,8 @@ use tower::ServiceExt;
 /// Acceptance slice: Create a `/health` endpoint.
 #[tokio::test]
 async fn health_endpoint_exists() {
-    let response = app()
+    let response = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .uri("/health")
@@ -29,7 +31,8 @@ async fn health_endpoint_exists() {
 /// Acceptance slice: Return `{status: 'ok'}`.
 #[tokio::test]
 async fn health_returns_status_ok() {
-    let response = app()
+    let response = common::test_app()
+        .await
         .oneshot(
             Request::builder()
                 .uri("/health")

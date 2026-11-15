@@ -11,23 +11,14 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 #[derive(Clone)]
 struct AppState {
-    accounts: Arc<Mutex<HashMap<String, StoredAccount>>>,
-}
-
-#[expect(dead_code)] // written for the account record; not read until login exists
-struct StoredAccount {
-    id: String,
-    email: String,
-    password_hash: String,
+    pool: PgPool,
 }
 
 #[derive(Deserialize)]
@@ -62,6 +53,28 @@ fn error_json(status: StatusCode, message: &str) -> axum::response::Response {
     (status, Json(json!({ "error": message }))).into_response()
 }
 
+/// Connect to Postgres using `DATABASE_URL` (or any Postgres URL).
+///
+/// # Errors
+///
+/// Returns an error if the URL is invalid or the server is unreachable.
+pub async fn connect_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
+    PgPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(std::time::Duration::from_secs(30))
+        .connect(database_url)
+        .await
+}
+
+/// Apply SQL migrations from `backend/migrations`.
+///
+/// # Errors
+///
+/// Returns an error if a migration fails to apply.
+pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
+    sqlx::migrate!("./migrations").run(pool).await
+}
+
 async fn health() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
@@ -91,29 +104,33 @@ async fn create_account(
         );
     };
 
-    let id = Uuid::new_v4().to_string();
-    let Ok(mut accounts) = state.accounts.lock() else {
-        return error_json(
+    let id = Uuid::new_v4();
+    let inserted = sqlx::query_scalar::<_, Uuid>(
+        r"
+        INSERT INTO accounts (id, email, password_hash)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING id
+        ",
+    )
+    .bind(id)
+    .bind(&email)
+    .bind(&password_hash)
+    .fetch_optional(&state.pool)
+    .await;
+
+    match inserted {
+        Ok(Some(created_id)) => (
+            StatusCode::CREATED,
+            Json(json!({ "id": created_id.to_string(), "email": email })),
+        )
+            .into_response(),
+        Ok(None) => error_json(StatusCode::CONFLICT, "email already exists"),
+        Err(_) => error_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to create account",
-        );
-    };
-
-    if accounts.contains_key(&email) {
-        return error_json(StatusCode::CONFLICT, "email already exists");
+        ),
     }
-
-    let created = json!({ "id": id, "email": email });
-    accounts.insert(
-        email.clone(),
-        StoredAccount {
-            id,
-            email,
-            password_hash,
-        },
-    );
-
-    (StatusCode::CREATED, Json(created)).into_response()
 }
 
 fn local_dev_cors() -> CorsLayer {
@@ -126,10 +143,8 @@ fn local_dev_cors() -> CorsLayer {
         .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::ACCEPT])
 }
 
-pub fn app() -> Router {
-    let state = AppState {
-        accounts: Arc::new(Mutex::new(HashMap::new())),
-    };
+pub fn app(pool: PgPool) -> Router {
+    let state = AppState { pool };
 
     Router::new()
         .route("/health", get(health))
