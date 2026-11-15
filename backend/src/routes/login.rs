@@ -1,5 +1,8 @@
-use axum::{Json, http::StatusCode};
+use crate::accounts::{self, LoginError};
+use crate::state::AppState;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::Deserialize;
+use serde_json::json;
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -7,8 +10,22 @@ pub struct LoginRequest {
     password: String,
 }
 
-/// Accepts JSON `{ email, password }`. Credential checks / token response come later.
-pub async fn login(Json(body): Json<LoginRequest>) -> StatusCode {
-    let _ = (body.email, body.password);
-    StatusCode::OK
+/// Authenticate with `{ email, password }` and return `{ id, email, token }` on success.
+pub async fn login(
+    State(state): State<AppState>,
+    Json(body): Json<LoginRequest>,
+) -> impl IntoResponse {
+    match accounts::login(&state.pool, &body.email, &body.password).await {
+        Ok(session) => (
+            StatusCode::OK,
+            Json(json!({
+                "id": session.id.to_string(),
+                "email": session.email,
+                "token": session.token,
+            })),
+        )
+            .into_response(),
+        Err(LoginError::Unauthorized) => StatusCode::UNAUTHORIZED.into_response(),
+        Err(LoginError::Internal) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
