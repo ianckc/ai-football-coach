@@ -4,25 +4,30 @@ use sqlx::PgPool;
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
 
-/// Same URL as `docker-compose.yml` / `backend/.env.example`.
-const DEFAULT_DATABASE_URL: &str =
-    "postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach";
+/// Dedicated test Compose service (`postgres-test` on host port 5433).
+/// Not the manual-dev `postgres` on 5432 / `backend/.env` `DATABASE_URL`.
+const DEFAULT_TEST_DATABASE_URL: &str =
+    "postgres://ai_football_coach:ai_football_coach@127.0.0.1:5433/ai_football_coach";
 
 static MIGRATIONS: OnceLock<Mutex<()>> = OnceLock::new();
 
 fn database_url() -> String {
-    // Prefer process env, then backend/.env, then Compose local default.
-    let _ = dotenvy::dotenv();
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_owned())
+    // Prefer explicit TEST_DATABASE_URL (CI / quality-tests). Do not load
+    // DATABASE_URL from backend/.env — that targets manual-dev Postgres.
+    std::env::var("TEST_DATABASE_URL")
+        .ok()
+        .filter(|url| !url.is_empty())
+        .unwrap_or_else(|| DEFAULT_TEST_DATABASE_URL.to_owned())
 }
 
-/// Pool against local Compose (or `DATABASE_URL`) — no ephemeral testcontainers.
+/// Pool against test Compose (or `TEST_DATABASE_URL`) — no ephemeral testcontainers.
 pub async fn test_pool() -> PgPool {
     let url = database_url();
     let pool = connect_pool(&url).await.unwrap_or_else(|err| {
         panic!(
-            "connect to test postgres failed ({err}). Start local DB with \
-             `docker compose up -d` from the repo root, or set DATABASE_URL."
+            "connect to test postgres failed ({err}). Start the test DB with \
+             `docker compose up -d postgres-test` from the repo root, or set \
+             TEST_DATABASE_URL."
         )
     });
 

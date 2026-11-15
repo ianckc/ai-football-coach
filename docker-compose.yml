@@ -8,8 +8,29 @@ services:
       POSTGRES_USER: ai_football_coach
       POSTGRES_PASSWORD: ai_football_coach
       POSTGRES_DB: ai_football_coach
+    volumes:
+      # Postgres 18 stores data under /var/lib/postgresql/<major>/docker
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ai_football_coach -d ai_football_coach"]
       interval: 2s
       timeout: 5s
       retries: 10
+
+  # Disposable instance for cargo test / quality-tests — no named volume.
+  postgres-test:
+    image: postgres:18
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ai_football_coach
+      POSTGRES_PASSWORD: ai_football_coach
+      POSTGRES_DB: ai_football_coach
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_football_coach -d ai_football_coach"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
