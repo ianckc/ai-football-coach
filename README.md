@@ -23,6 +23,21 @@ Full guide (docs site): [`docs/docs/software-factory.mdx`](docs/docs/software-fa
 
 Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start). API reference: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx) (also **Backend API** on the docs site). Frontend setup: [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx) (also **Frontend** on the docs site).
 
+## Backend
+
+The Axum API lives in [`backend/`](backend/). It persists accounts in Postgres via `DATABASE_URL`.
+
+### Local Postgres
+
+```bash
+docker compose up -d
+cd backend
+cp .env.example .env   # sets DATABASE_URL for local Compose
+cargo run
+```
+
+Migrations under `backend/migrations/` run automatically on startup. Production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon). Details: [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
+
 ## Frontend
 
 The TanStack Start app lives in [`frontend/`](frontend/).
@@ -47,7 +62,7 @@ npm run dev
 
 Starts the frontend at [http://localhost:3000](http://localhost:3000).
 
-To exercise `/health` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health). The page uses `VITE_BACKEND_BASE_URL` when set; otherwise it defaults to `http://127.0.0.1:8000`. See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
+To exercise `/health` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health). Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
 ### Tests
 
 ```bash

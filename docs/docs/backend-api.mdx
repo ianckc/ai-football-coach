@@ -8,14 +8,30 @@ The Rust/Axum service in `backend/` exposes HTTP APIs for the product. It listen
 
 ## Run locally
 
-From the repository root:
+Accounts are stored in **Postgres**. Local development uses Docker Compose; production uses the same `DATABASE_URL` pattern with a hosted provider (e.g. Neon).
+
+1. Start Postgres from the repository root:
+
+```bash
+docker compose up -d
+```
+
+Service name: `postgres` (image `postgres:16`, host port `5432`). Local-only credentials:
+
+- user / password / database: `ai_football_coach`
+- example `DATABASE_URL`: `postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach`
+
+2. Configure `DATABASE_URL` and run the backend (migrations apply automatically on startup):
 
 ```bash
 cd backend
+cp .env.example .env   # local Compose URL; gitignored
 cargo run
 ```
 
-Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition).
+`DATABASE_URL` is required (from the environment or `backend/.env`). Copy from `backend/.env.example`. Do not commit real credentials; Compose passwords are for local use only.
+
+Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
 
 ## Endpoints
 
@@ -31,7 +47,7 @@ Liveness check.
 
 ### `POST /accounts`
 
-Create a coach account. Passwords are hashed with argon2 before storage. The current store is **in-memory** (not durable across restarts). Login, email verification, password reset, and a persistent database are out of scope for this endpoint.
+Create a coach account. Passwords are hashed with argon2 before storage. Accounts are persisted in Postgres (`accounts` table: `id`, `email`, `password_hash`) and survive process restart. Login, email verification, and password reset are out of scope for this endpoint.
 
 **Request:** `Content-Type: application/json`
 
