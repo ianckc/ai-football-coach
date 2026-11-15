@@ -425,6 +425,49 @@ async fn accounts_post_rejects_password_shorter_than_8_characters() {
     }
 }
 
+/// Acceptance slice (#31): Mutex poison / lock failure returns `500` with a
+/// JSON error body instead of panicking the worker.
+#[test]
+fn create_account_maps_accounts_mutex_poison_to_500_without_panic() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
+    let src = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+
+    let handler_start = src
+        .find("async fn create_account")
+        .expect("create_account handler must exist");
+    let handler = &src[handler_start..];
+    let handler_end = handler[1..]
+        .find("\nasync fn ")
+        .or_else(|| handler[1..].find("\nfn "))
+        .map(|i| i + 1)
+        .unwrap_or(handler.len());
+    let handler = &handler[..handler_end];
+
+    assert!(
+        handler.contains(".lock()"),
+        "create_account must still lock the accounts mutex"
+    );
+    assert!(
+        !handler.contains(".lock().expect(") && !handler.contains(".lock().unwrap("),
+        "create_account must not panic on a poisoned accounts mutex via lock().expect/unwrap"
+    );
+    assert!(
+        !handler.contains("into_inner()"),
+        "create_account must not silently recover a poisoned accounts mutex via into_inner; return 500 + JSON error instead"
+    );
+
+    let lock_idx = handler
+        .find(".lock()")
+        .expect("create_account must call lock()");
+    let end = (lock_idx + 400).min(handler.len());
+    let lock_region = &handler[lock_idx..end];
+    assert!(
+        lock_region.contains("INTERNAL_SERVER_ERROR") || lock_region.contains("error_json"),
+        "accounts mutex lock failure must map to 500 + JSON error body (error_json / INTERNAL_SERVER_ERROR near lock)"
+    );
+}
+
 /// Acceptance slice (#16): Run password hashing off the async runtime (e.g.
 /// `spawn_blocking`) so Argon2 does not block Axum workers.
 #[test]
