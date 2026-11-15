@@ -5,30 +5,12 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use tower::ServiceExt;
+use uuid::{Uuid, Variant, Version};
 
 fn is_uuid_v4(value: &str) -> bool {
-    let parts: Vec<&str> = value.split('-').collect();
-    if parts.len() != 5
-        || parts[0].len() != 8
-        || parts[1].len() != 4
-        || parts[2].len() != 4
-        || parts[3].len() != 4
-        || parts[4].len() != 12
-    {
-        return false;
-    }
-    if !parts
-        .iter()
-        .all(|part| part.chars().all(|c| c.is_ascii_hexdigit()))
-    {
-        return false;
-    }
-    // Version nibble must be 4; RFC 4122 variant nibble must be 8, 9, a, or b.
-    parts[2].starts_with('4')
-        && matches!(
-            parts[3].chars().next(),
-            Some('8' | '9' | 'a' | 'b' | 'A' | 'B')
-        )
+    Uuid::parse_str(value).is_ok_and(|id| {
+        id.get_version() == Some(Version::Random) && id.get_variant() == Variant::RFC4122
+    })
 }
 
 /// Acceptance slice: Add `POST /accounts`.
@@ -425,6 +407,75 @@ async fn accounts_post_rejects_password_shorter_than_8_characters() {
     }
 }
 
+/// Acceptance slice (#31): Mutex poison / lock failure returns `500` with a
+/// JSON error body instead of panicking the worker.
+#[test]
+fn create_account_maps_accounts_mutex_poison_to_500_without_panic() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
+    let src = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+
+    let handler_start = src
+        .find("async fn create_account")
+        .expect("create_account handler must exist");
+    let handler = &src[handler_start..];
+    let handler_end = handler[1..]
+        .find("\nasync fn ")
+        .or_else(|| handler[1..].find("\nfn "))
+        .map_or(handler.len(), |i| i + 1);
+    let handler = &handler[..handler_end];
+
+    assert!(
+        handler.contains(".lock()"),
+        "create_account must still lock the accounts mutex"
+    );
+    assert!(
+        !handler.contains(".lock().expect(") && !handler.contains(".lock().unwrap("),
+        "create_account must not panic on a poisoned accounts mutex via lock().expect/unwrap"
+    );
+    assert!(
+        !handler.contains("into_inner()"),
+        "create_account must not silently recover a poisoned accounts mutex via into_inner; return 500 + JSON error instead"
+    );
+
+    let lock_idx = handler
+        .find(".lock()")
+        .expect("create_account must call lock()");
+    let end = (lock_idx + 400).min(handler.len());
+    let lock_region = &handler[lock_idx..end];
+    assert!(
+        lock_region.contains("INTERNAL_SERVER_ERROR") || lock_region.contains("error_json"),
+        "accounts mutex lock failure must map to 500 + JSON error body (error_json / INTERNAL_SERVER_ERROR near lock)"
+    );
+}
+
+/// Acceptance slice (#31): Tokio features are narrowed from `full`.
+#[test]
+fn cargo_toml_narrows_tokio_features_from_full() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let manifest = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+
+    let tokio_line = manifest.lines().find(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("tokio") && trimmed.contains("features")
+    });
+    let tokio_line = tokio_line.unwrap_or_else(|| {
+        panic!("backend Cargo.toml must declare a tokio dependency with features")
+    });
+
+    assert!(
+        !tokio_line.contains("\"full\"") && !tokio_line.contains("'full'"),
+        "tokio features must be narrowed from full; got: {tokio_line}"
+    );
+    assert!(
+        tokio_line.contains("macros")
+            && tokio_line.contains("rt-multi-thread")
+            && tokio_line.contains("net"),
+        "tokio must keep the minimal features needed (macros, rt-multi-thread, net); got: {tokio_line}"
+    );
+}
+
 /// Acceptance slice (#16): Run password hashing off the async runtime (e.g.
 /// `spawn_blocking`) so Argon2 does not block Axum workers.
 #[test]
@@ -440,8 +491,7 @@ fn create_account_runs_password_hashing_off_async_runtime() {
     let handler_end = handler[1..]
         .find("\nasync fn ")
         .or_else(|| handler[1..].find("\nfn "))
-        .map(|i| i + 1)
-        .unwrap_or(handler.len());
+        .map_or(handler.len(), |i| i + 1);
     let handler = &handler[..handler_end];
 
     assert!(
