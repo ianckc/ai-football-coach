@@ -13,3 +13,7 @@ work-orders/.force-red
 work-orders/*.md
 !work-orders/.gitkeep
 
+# Local secrets / env (use Compose creds for local Postgres only)
+.env
+backend/.env
+
