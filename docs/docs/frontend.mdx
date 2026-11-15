@@ -52,6 +52,11 @@ cd frontend
 cp .env.example .env   # optional; gitignored
 npm run dev
 ```
+
+Local browser calls need CORS. The backend defaults to allowing Vite on port 3000 (`http://localhost:3000` and `http://127.0.0.1:3000`). To allow other origins, set `CORS_ALLOWED_ORIGINS` in `backend/.env` (comma-separated); see `backend/.env.example`. The `/health` JSON contract is unchanged.
+
+The same local `/health` setup is summarized in [`frontend/README.md`](../../frontend/README.md).
+
 ## Tests
 
 Acceptance checks are TypeScript Vitest files under `frontend/tests/`.
