@@ -218,3 +218,56 @@ async fn login_post_returns_200_with_id_email_and_token() {
         "success body must never return the password"
     );
 }
+
+/// Acceptance slice (#33): Reject missing/invalid email or password shape with
+/// `400` and a JSON error body.
+#[tokio::test]
+async fn login_post_rejects_missing_or_invalid_email_or_password() {
+    let cases = [
+        (r#"{"email":"","password":"secret123"}"#, "empty email"),
+        (
+            r#"{"email":"not-an-email","password":"secret123"}"#,
+            "invalid email",
+        ),
+        (
+            r#"{"email":"coach@example.com","password":""}"#,
+            "empty password",
+        ),
+        (r#"{"email":"coach@example.com"}"#, "missing password"),
+        (r#"{"password":"secret123"}"#, "missing email"),
+    ];
+
+    for (body, label) in cases {
+        let response = common::test_app()
+            .await
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "POST /login must return 400 for {label}"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| panic!("POST /login must return a JSON error body for {label}"));
+        assert!(
+            json.is_object(),
+            "POST /login error body must be a JSON object for {label}"
+        );
+    }
+}
