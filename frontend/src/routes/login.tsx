@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 
 export const Route = createFileRoute('/login')({
   component: Login,
@@ -8,8 +8,11 @@ export const Route = createFileRoute('/login')({
 const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://127.0.0.1:8000'
 
 export function Login() {
+  const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null)
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setLoggedInEmail(null)
 
     const formData = new FormData(event.currentTarget)
     const email = String(formData.get('email') ?? '')
@@ -19,6 +22,13 @@ export function Login() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+    }).then(async (response) => {
+      if (response.status !== 200) {
+        return
+      }
+      const body = (await response.json()) as { email: string; token: string }
+      sessionStorage.setItem('token', body.token)
+      setLoggedInEmail(body.email)
     })
   }
 
@@ -36,6 +46,7 @@ export function Login() {
         </label>
         <button type="submit">Login</button>
       </form>
+      {loggedInEmail ? <p>Logged in as {loggedInEmail}</p> : null}
     </main>
   )
 }
