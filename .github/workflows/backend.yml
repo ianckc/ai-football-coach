@@ -6,6 +6,7 @@ on:
       - 'backend/**'
       - 'docker-compose.yml'
       - '.github/workflows/backend.yml'
+      - 'rust-toolchain.toml'
 
 jobs:
   check:
@@ -31,9 +32,7 @@ jobs:
       TEST_DATABASE_URL: postgres://ai_football_coach:ai_football_coach@127.0.0.1:5432/ai_football_coach
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - uses: dtolnay/rust-toolchain@master
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: backend

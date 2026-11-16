@@ -2,6 +2,7 @@
 name = "ai-football-coach-backend"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.100"
 
 [dependencies]
 argon2 = "0.6"
