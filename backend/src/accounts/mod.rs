@@ -148,9 +148,56 @@ pub async fn login(
         return Err(LoginError::Unauthorized);
     }
 
-    Ok(LoginSession {
-        id,
-        email,
-        token: Uuid::new_v4().to_string(),
-    })
+    let token = Uuid::new_v4().to_string();
+    sqlx::query(
+        r"
+        INSERT INTO sessions (token, account_id)
+        VALUES ($1, $2)
+        ",
+    )
+    .bind(&token)
+    .bind(id)
+    .execute(pool)
+    .await
+    .map_err(|_| LoginError::Internal)?;
+
+    Ok(LoginSession { id, email, token })
+}
+
+pub struct AccountIdentity {
+    pub id: Uuid,
+    pub email: String,
+}
+
+pub enum LookupByTokenError {
+    Unauthorized,
+    Internal,
+}
+
+/// Resolve a stored session `token` to the linked account `id` and `email`.
+pub async fn lookup_by_token(
+    pool: &PgPool,
+    token: &str,
+) -> Result<AccountIdentity, LookupByTokenError> {
+    if token.is_empty() {
+        return Err(LookupByTokenError::Unauthorized);
+    }
+
+    let row = sqlx::query_as::<_, (Uuid, String)>(
+        r"
+        SELECT a.id, a.email
+        FROM sessions s
+        JOIN accounts a ON a.id = s.account_id
+        WHERE s.token = $1
+        ",
+    )
+    .bind(token)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| LookupByTokenError::Internal)?;
+
+    match row {
+        Some((id, email)) => Ok(AccountIdentity { id, email }),
+        None => Err(LookupByTokenError::Unauthorized),
+    }
 }
