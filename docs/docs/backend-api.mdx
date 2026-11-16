@@ -189,4 +189,4 @@ A successful `POST /login` inserts a row into the Postgres `sessions` table (mig
 
 Clients send the token on authenticated requests as `Authorization: Bearer <token>`; `GET /me` looks the token up in `sessions` and returns the linked account, or `401` when the token is missing or unknown.
 
-Known limitations (follow-ups, out of scope for the current slice): sessions do not expire, there is no logout, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest (storing only a digest and comparing on lookup) is the preferred hardening and is planned as a later change. The `Authorization` header is also not yet in the default CORS allow-list for browser clients.
+Known limitations (follow-ups, out of scope for the current slice): sessions do not expire, there is no logout, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest (storing only a digest and comparing on lookup) is the preferred hardening and is planned as a later change. Local CORS defaults allow `Authorization` (along with `Content-Type` and `Accept`) so browser `GET /me` from the Vite origin can send `Authorization: Bearer <token>`.

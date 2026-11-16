@@ -75,7 +75,7 @@ npm run dev
 
 Starts the frontend at [http://localhost:3000](http://localhost:3000).
 
-To exercise `/health`, `/accounts/create`, or `/login` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health), [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create), or [http://localhost:3000/login](http://localhost:3000/login). Create an account first if you need credentials for `/login`. Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
+To exercise `/health`, `/accounts/create`, `/login`, or `/me` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health), [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create), [http://localhost:3000/login](http://localhost:3000/login), or [http://localhost:3000/me](http://localhost:3000/me). Create an account and log in first before `/me` (it needs the session `token` from `/login`). Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
 ### Tests
 
 TypeScript Vitest acceptance checks live under `frontend/tests/`.
