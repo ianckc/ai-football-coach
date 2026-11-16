@@ -202,3 +202,122 @@ async fn login_persists_returned_token_in_sessions_before_200() {
         "successful POST /login must persist the returned token in sessions linked to the account before responding 200"
     );
 }
+
+/// Acceptance slice (#59): Given a stored `token`, look up the matching account
+/// (`id`, `email`) via a backend helper or route usable by later auth
+/// (e.g. `GET /me` with `Authorization: Bearer <token>`).
+#[tokio::test]
+async fn me_get_with_bearer_token_returns_matching_account() {
+    let app = common::test_app().await;
+    let email = unique_email("me-lookup");
+    let password = "secret123";
+
+    let created = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        created.status(),
+        StatusCode::CREATED,
+        "setup: POST /accounts must create the account used for token lookup"
+    );
+
+    let created_body = created
+        .into_body()
+        .collect()
+        .await
+        .expect("read create body")
+        .to_bytes();
+    let created_json: serde_json::Value =
+        serde_json::from_slice(&created_body).expect("setup: create must return JSON");
+    let account_id = created_json
+        .get("id")
+        .and_then(|v| v.as_str())
+        .expect("setup: create must return id")
+        .to_owned();
+
+    let login = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/login")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        login.status(),
+        StatusCode::OK,
+        "setup: POST /login must succeed so a stored token exists"
+    );
+
+    let login_body = login
+        .into_body()
+        .collect()
+        .await
+        .expect("read login body")
+        .to_bytes();
+    let login_json: serde_json::Value =
+        serde_json::from_slice(&login_body).expect("setup: login must return JSON");
+    let token = login_json
+        .get("token")
+        .and_then(|v| v.as_str())
+        .expect("setup: login must return token")
+        .to_owned();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/me")
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "GET /me with Authorization: Bearer <stored token> must return 200"
+    );
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("read /me body")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("GET /me must return JSON");
+    let obj = json
+        .as_object()
+        .expect("GET /me success body must be a JSON object");
+
+    assert_eq!(
+        obj.get("id").and_then(|v| v.as_str()),
+        Some(account_id.as_str()),
+        "GET /me must return the account id matching the stored token"
+    );
+    assert_eq!(
+        obj.get("email").and_then(|v| v.as_str()),
+        Some(email.as_str()),
+        "GET /me must return the account email matching the stored token"
+    );
+}
