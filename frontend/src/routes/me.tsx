@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react'
 
 export const Route = createFileRoute('/me')({
   beforeLoad: () => {
-    // Only redirect when sessionStorage is available (browser). Treating SSR
-    // (`sessionStorage` undefined) as logged-out would bounce every full load.
-    if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('token')) {
+    // Node exposes an empty global `sessionStorage`; only trust the browser.
+    if (typeof window === 'undefined') {
+      return
+    }
+    if (!sessionStorage.getItem('token')) {
       throw redirect({ to: '/login' })
     }
   },
@@ -22,6 +24,8 @@ function Me() {
   useEffect(() => {
     const token = sessionStorage.getItem('token')
     if (!token) {
+      // SSR may render this page; send logged-out clients to /login after hydrate.
+      window.location.replace('/login')
       return
     }
 

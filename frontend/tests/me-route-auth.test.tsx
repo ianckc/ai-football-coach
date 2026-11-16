@@ -26,6 +26,10 @@ describe('me route auth guard', () => {
     )
     expect(
       source,
+      'auth guard must not treat Node’s empty sessionStorage as the browser (check window)',
+    ).toMatch(/typeof\s+window\s*===\s*['"]undefined['"]|typeof\s+window\s*!==\s*['"]undefined['"]/)
+    expect(
+      source,
       'when logged out, must redirect to /login or otherwise refuse profile content',
     ).toMatch(/['"]\/login['"]|to:\s*['"]\/login['"]|href=["']\/login["']/)
   })
