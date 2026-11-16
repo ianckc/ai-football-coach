@@ -27,11 +27,7 @@ describe('login page', () => {
     expect(source, 'form must include an email field').toMatch(
       /htmlFor=["']email["']|id=["']email["']|name=["']email["']|label[^>]*>\s*email/i,
     )
-    expect(source, 'form must include a password field').toMatch(
-      /type=["']password["']/,
-    )
-    expect(source, 'form must include a submit control').toMatch(
-      /type=["']submit["']/,
-    )
+    expect(source, 'form must include a password field').toMatch(/type=["']password["']/)
+    expect(source, 'form must include a submit control').toMatch(/type=["']submit["']/)
   })
 })

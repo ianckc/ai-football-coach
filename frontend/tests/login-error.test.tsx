@@ -76,10 +76,7 @@ describe('login error', () => {
         'must leave the user logged out',
       ).not.toBeInTheDocument()
 
-      expect(
-        sessionStorage.getItem('token'),
-        'must not persist a token on failure',
-      ).toBeNull()
+      expect(sessionStorage.getItem('token'), 'must not persist a token on failure').toBeNull()
     },
   )
 })

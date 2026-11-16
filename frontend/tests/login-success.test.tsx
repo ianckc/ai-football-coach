@@ -73,10 +73,9 @@ describe('login success', () => {
       'logged-in state must not show the password',
     ).not.toBeInTheDocument()
 
-    expect(
-      sessionStorage.getItem('token'),
-      'token must be persisted for the browser session',
-    ).toBe(token)
+    expect(sessionStorage.getItem('token'), 'token must be persisted for the browser session').toBe(
+      token,
+    )
   })
 
   it('does not treat a non-200 response as a successful login', async () => {
@@ -115,9 +114,6 @@ describe('login success', () => {
       'must not show a logged-in state on failure',
     ).not.toBeInTheDocument()
 
-    expect(
-      sessionStorage.getItem('token'),
-      'must not persist a token on failure',
-    ).toBeNull()
+    expect(sessionStorage.getItem('token'), 'must not persist a token on failure').toBeNull()
   })
 })

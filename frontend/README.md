@@ -55,6 +55,22 @@ The `/accounts/create` page submits email and password to the backend `POST /acc
 
 By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/accounts`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply to browser `POST /accounts` calls as well.
 
+## Local backend for `/login`
+
+The `/login` page submits email and password to the backend `POST /login` endpoint. On success it stores the `token` in `sessionStorage` and shows a logged-in state with the coach email. On `401` / other failure / unreachable backend it shows a clear error and leaves the user logged out.
+
+Create an account first via `/accounts/create` (or `POST /accounts`) if needed — there is no account-creation UI on the login page.
+
+1. Start the backend (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
+
+2. Start the frontend (`npm run dev`).
+
+3. Create an account at [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create) if you do not already have one.
+
+4. Open [http://localhost:3000/login](http://localhost:3000/login).
+
+By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/login`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply to browser `POST /login` calls as well.
+
 ## Tests
 
 ```bash
