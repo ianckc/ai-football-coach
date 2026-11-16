@@ -2,7 +2,8 @@ mod common;
 
 use axum::{
     body::Body,
-    http::{Request, StatusCode},
+    http::{Request, Response, StatusCode},
+    Router,
 };
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -10,6 +11,70 @@ use uuid::Uuid;
 
 fn unique_email(prefix: &str) -> String {
     format!("{prefix}-{}@example.com", Uuid::new_v4())
+}
+
+async fn response_json(response: Response<Body>) -> serde_json::Value {
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("read response body")
+        .to_bytes();
+    serde_json::from_slice(&body).expect("response must return JSON")
+}
+
+async fn create_account(app: Router, email: &str, password: &str) -> String {
+    let created = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        created.status(),
+        StatusCode::CREATED,
+        "setup: POST /accounts must create the account"
+    );
+    response_json(created)
+        .await
+        .get("id")
+        .and_then(|v| v.as_str())
+        .expect("setup: create must return id")
+        .to_owned()
+}
+
+async fn login_token(app: Router, email: &str, password: &str) -> String {
+    let login = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/login")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        login.status(),
+        StatusCode::OK,
+        "setup: POST /login must succeed"
+    );
+    response_json(login)
+        .await
+        .get("token")
+        .and_then(|v| v.as_str())
+        .expect("setup: login must return token")
+        .to_owned()
 }
 
 /// Acceptance slice (#59): Add a Postgres migration for session tokens
@@ -113,74 +178,9 @@ async fn login_persists_returned_token_in_sessions_before_200() {
     let app = common::test_app().await;
     let email = unique_email("login-persist");
     let password = "secret123";
+    let account_id = create_account(app.clone(), &email, password).await;
+    let token = login_token(app, &email, password).await;
 
-    let created = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/accounts")
-                .header("content-type", "application/json")
-                .body(Body::from(format!(
-                    r#"{{"email":"{email}","password":"{password}"}}"#
-                )))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        created.status(),
-        StatusCode::CREATED,
-        "setup: POST /accounts must create the account used for login"
-    );
-
-    let created_body = created
-        .into_body()
-        .collect()
-        .await
-        .expect("read create body")
-        .to_bytes();
-    let created_json: serde_json::Value =
-        serde_json::from_slice(&created_body).expect("setup: create must return JSON");
-    let account_id = created_json
-        .get("id")
-        .and_then(|v| v.as_str())
-        .expect("setup: create must return id")
-        .to_owned();
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/login")
-                .header("content-type", "application/json")
-                .body(Body::from(format!(
-                    r#"{{"email":"{email}","password":"{password}"}}"#
-                )))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(
-        response.status(),
-        StatusCode::OK,
-        "POST /login must return 200 on success"
-    );
-
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("read login body")
-        .to_bytes();
-    let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("POST /login must return JSON");
-    let token = json
-        .get("token")
-        .and_then(|v| v.as_str())
-        .expect("success body must include token")
-        .to_owned();
     assert!(
         !token.is_empty(),
         "token must be a non-empty opaque session token"
@@ -211,74 +211,8 @@ async fn me_get_with_bearer_token_returns_matching_account() {
     let app = common::test_app().await;
     let email = unique_email("me-lookup");
     let password = "secret123";
-
-    let created = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/accounts")
-                .header("content-type", "application/json")
-                .body(Body::from(format!(
-                    r#"{{"email":"{email}","password":"{password}"}}"#
-                )))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        created.status(),
-        StatusCode::CREATED,
-        "setup: POST /accounts must create the account used for token lookup"
-    );
-
-    let created_body = created
-        .into_body()
-        .collect()
-        .await
-        .expect("read create body")
-        .to_bytes();
-    let created_json: serde_json::Value =
-        serde_json::from_slice(&created_body).expect("setup: create must return JSON");
-    let account_id = created_json
-        .get("id")
-        .and_then(|v| v.as_str())
-        .expect("setup: create must return id")
-        .to_owned();
-
-    let login = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/login")
-                .header("content-type", "application/json")
-                .body(Body::from(format!(
-                    r#"{{"email":"{email}","password":"{password}"}}"#
-                )))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        login.status(),
-        StatusCode::OK,
-        "setup: POST /login must succeed so a stored token exists"
-    );
-
-    let login_body = login
-        .into_body()
-        .collect()
-        .await
-        .expect("read login body")
-        .to_bytes();
-    let login_json: serde_json::Value =
-        serde_json::from_slice(&login_body).expect("setup: login must return JSON");
-    let token = login_json
-        .get("token")
-        .and_then(|v| v.as_str())
-        .expect("setup: login must return token")
-        .to_owned();
+    let account_id = create_account(app.clone(), &email, password).await;
+    let token = login_token(app.clone(), &email, password).await;
 
     let response = app
         .oneshot(
@@ -298,14 +232,7 @@ async fn me_get_with_bearer_token_returns_matching_account() {
         "GET /me with Authorization: Bearer <stored token> must return 200"
     );
 
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("read /me body")
-        .to_bytes();
-    let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("GET /me must return JSON");
+    let json = response_json(response).await;
     let obj = json
         .as_object()
         .expect("GET /me success body must be a JSON object");
