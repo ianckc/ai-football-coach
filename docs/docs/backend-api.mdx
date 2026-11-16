@@ -40,7 +40,7 @@ cargo run
 
 Optional local CORS: set `CORS_ALLOWED_ORIGINS` (comma-separated browser origins) when the frontend is not on port 3000. Defaults are `http://localhost:3000` and `http://127.0.0.1:3000`. This does not change the `GET /health` response contract.
 
-Requires a recent Rust toolchain (see `backend/Cargo.toml` for the crate edition). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
+Requires Rust **1.100** (pinned by root `rust-toolchain.toml`; MSRV in `backend/Cargo.toml`). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
 
 Backend `cargo test` connects to **`postgres-test`** (host port `5433`) by default, or to `TEST_DATABASE_URL` when set. It does **not** use `DATABASE_URL` from `backend/.env`. Start the test DB with `docker compose up -d postgres-test` (the factory `quality-tests` gate starts that service when Docker is available). CI provides its own Postgres and sets `TEST_DATABASE_URL`.
 

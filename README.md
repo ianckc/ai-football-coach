@@ -27,6 +27,10 @@ Product apps: `backend/` (Rust/Axum) and `frontend/` (TanStack Start). API refer
 
 The Axum API lives in [`backend/`](backend/). It persists accounts in Postgres via `DATABASE_URL`.
 
+### Requirements
+
+- Rust **1.100** (pinned by [`rust-toolchain.toml`](rust-toolchain.toml); MSRV in [`backend/Cargo.toml`](backend/Cargo.toml))
+
 ### Local Postgres
 
 Compose runs two local Postgres services: `postgres` on port `5432` for manual `cargo run` (named volume), and `postgres-test` on `5433` for `cargo test` / factory gates (disposable). See [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
