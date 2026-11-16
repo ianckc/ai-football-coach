@@ -321,3 +321,66 @@ async fn me_get_with_bearer_token_returns_matching_account() {
         "GET /me must return the account email matching the stored token"
     );
 }
+
+/// Acceptance slice (#59): Reject missing/unknown/invalid `token` on lookup
+/// with `401` and a JSON error body (same shape as other auth errors).
+#[tokio::test]
+async fn me_get_rejects_missing_unknown_or_invalid_token_with_401_json() {
+    let app = common::test_app().await;
+    let unknown_authorization = format!("Bearer {}", Uuid::new_v4());
+
+    let cases: [(&str, Option<&str>); 3] = [
+        ("missing Authorization header", None),
+        ("unknown token", Some(unknown_authorization.as_str())),
+        ("invalid Authorization scheme", Some("Token not-a-bearer")),
+    ];
+
+    let mut bodies = Vec::new();
+
+    for (label, authorization) in cases {
+        let mut builder = Request::builder().method("GET").uri("/me");
+        if let Some(value) = authorization {
+            builder = builder.header("authorization", value);
+        }
+        let response = app
+            .clone()
+            .oneshot(builder.body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "GET /me must return 401 for {label}"
+        );
+
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("read /me body")
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| panic!("GET /me must return a JSON error body for {label}"));
+        assert!(
+            json.is_object(),
+            "GET /me error body must be a JSON object for {label}"
+        );
+        assert!(
+            json.get("error")
+                .and_then(|v| v.as_str())
+                .is_some_and(|s| !s.is_empty()),
+            "GET /me error body must include a non-empty error string like other auth errors; got {json} for {label}"
+        );
+        bodies.push(json);
+    }
+
+    assert_eq!(
+        bodies[0], bodies[1],
+        "missing and unknown token must share the same 401 error shape"
+    );
+    assert_eq!(
+        bodies[1], bodies[2],
+        "unknown and invalid token must share the same 401 error shape"
+    );
+}
