@@ -31,6 +31,13 @@ The Axum API lives in [`backend/`](backend/). It persists accounts in Postgres v
 
 - Rust **1.100** (pinned by [`rust-toolchain.toml`](rust-toolchain.toml); MSRV in [`backend/Cargo.toml`](backend/Cargo.toml))
 
+Dependency resolution uses a 3-day crates.io cooldown via [`backend/.cargo/config.toml`](backend/.cargo/config.toml) (`registry.global-min-publish-age`). To force a newer version for an urgent update:
+
+```bash
+cd backend
+CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update <crate> --precise <version>
+```
+
 ### Local Postgres
 
 Compose runs two local Postgres services: `postgres` on port `5432` for manual `cargo run` (named volume), and `postgres-test` on `5433` for `cargo test` / factory gates (disposable). See [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx).
