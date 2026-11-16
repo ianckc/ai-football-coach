@@ -11,6 +11,11 @@ Append a short note after each finished `run-ticket` run.
 - Machine fixes (prompts/gates/docs):
 ```
 
+### 2026-11-16 — ianckc/ai-football-coach#34
+- Rounds: 5
+- Outcome: Added `frontend` `/login` page (form → `POST /login`; success persists `token` in `sessionStorage` and shows coach email; `401`/other failure shows error and stays logged out; local backend docs). Review: no unresolved critical/high after docs slice. Medium/low follow-ups noted (stale token on re-login failure, pending UI, error body surfacing, hide form after success). `.force-red` absent.
+- Machine fixes (prompts/gates/docs): AGENTS.md product surface updated (`/login` + existing `/health` and `/accounts/create`); login local-flow docs landed in review remediation (update-docs skipped further edits).
+
 ### 2026-11-15 — ianckc/ai-football-coach#33
 - Rounds: 5
 - Outcome: Added `POST /login` (email/password JSON → `200` `{id,email,token}` on success; `400` shape errors; identical `401` for unknown email / wrong password). Review: no critical/high. `.force-red` absent.
