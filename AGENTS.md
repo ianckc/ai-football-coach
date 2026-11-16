@@ -7,7 +7,7 @@ This file is the **contract** for anyone (human or agent) changing this repo via
 AI Football Coach — help football coaches plan training and improve teams.
 
 - Docs site: [`docs/`](docs/) (Docusaurus) — includes Backend API and Frontend pages
-- Backend: `backend/` (Rust/Axum) — health, account creation, and login API (see [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx))
+- Backend: `backend/` (Rust/Axum) — health, account creation, login (persists session tokens in Postgres), and `GET /me` (Bearer token → account) (see [`docs/docs/backend-api.mdx`](docs/docs/backend-api.mdx))
 - Frontend: `frontend/` (TanStack Start) — root `/` landing page (“AI Football Coach”); `/health`, `/accounts/create`, and `/login`; `npm run dev` on port 3000 (see [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx))
 
 ## Vocabulary

@@ -11,6 +11,11 @@ Append a short note after each finished `run-ticket` run.
 - Machine fixes (prompts/gates/docs):
 ```
 
+### 2026-11-16 — ianckc/ai-football-coach#59
+- Rounds: 5
+- Outcome: Persist backend session tokens in Postgres (`sessions` migration; login inserts token before `200`; `GET /me` with `Authorization: Bearer <token>` returns `{id,email}`; missing/unknown/invalid → `401` JSON; `backend-api.mdx` documents storage + Bearer presentation). Review: no unresolved critical/high after docs slice. Medium/low follow-ups noted (CORS `Authorization`, case-insensitive Bearer, JSON 500s, FK `ON DELETE`, hash tokens at rest). `.force-red` absent.
+- Machine fixes (prompts/gates/docs): AGENTS.md product surface updated (`GET /me` + session persistence); session/login/`/me` docs landed in review remediation (update-docs skipped further edits).
+
 ### 2026-11-16 — ianckc/ai-football-coach#34
 - Rounds: 5
 - Outcome: Added `frontend` `/login` page (form → `POST /login`; success persists `token` in `sessionStorage` and shows coach email; `401`/other failure shows error and stays logged out; local backend docs). Review: no unresolved critical/high after docs slice. Medium/low follow-ups noted (stale token on re-login failure, pending UI, error body surfacing, hide form after success). `.force-red` absent.
