@@ -62,8 +62,8 @@ Source under `backend/src/` is split by concern:
 | `lib.rs` | Module tree, CORS, `app` / `app_with_cors_origins`, pool connect + migrations |
 | `main.rs` | Bind and serve (thin binary) |
 | `state.rs` | Shared `AppState` (Postgres pool) |
-| `routes/` | HTTP handlers and route registration (`/health`, `/accounts`) |
-| `accounts/` | Create-account domain logic (validation, password hashing, insert / uniqueness) |
+| `routes/` | HTTP handlers and route registration (`/health`, `/accounts`, `/login`, `/me`) |
+| `accounts/` | Account domain logic (validation, password hashing, insert / uniqueness, login, session creation, token lookup) |
 
 Add new endpoints under `routes/`; keep validation, hashing, and persistence in domain modules (e.g. `accounts/`), not in a monolithic `lib.rs`.
 
@@ -125,3 +125,68 @@ curl -sS -X POST http://127.0.0.1:8000/accounts \
   -H 'Content-Type: application/json' \
   -d '{"email":"coach@example.com","password":"secret123"}'
 ```
+
+### `POST /login`
+
+Authenticate a coach with `{ "email", "password" }` (same JSON shape as `POST /accounts`). On success a new session is created and its opaque token is returned.
+
+**Success:** `200 OK`
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "coach@example.com",
+  "token": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+}
+```
+
+**Errors**
+
+| Status | When | Body shape |
+|--------|------|------------|
+| `400` | Missing, empty, wrong JSON type, or invalid email/password input | JSON object (e.g. `{ "error": "…" }`) |
+| `401` | Unknown email or wrong password | JSON object (e.g. `{ "error": "…" }`) |
+
+### `GET /me`
+
+Return the account linked to a session token. Present the token from `POST /login` in the `Authorization` header:
+
+```text
+Authorization: Bearer <token>
+```
+
+**Success:** `200 OK`
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "coach@example.com"
+}
+```
+
+**Errors**
+
+| Status | When | Body shape |
+|--------|------|------------|
+| `401` | `Authorization` header missing, not a `Bearer` token, or the token is unknown | JSON object (e.g. `{ "error": "invalid token" }`) |
+
+**Example**
+
+```bash
+curl -sS http://127.0.0.1:8000/me \
+  -H 'Authorization: Bearer <token>'
+```
+
+## Sessions
+
+A successful `POST /login` inserts a row into the Postgres `sessions` table (migration `backend/migrations/20261116180000_create_sessions.sql`):
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `token` | `TEXT` primary key | Opaque session token (a UUID string). Clients must treat it as an opaque value and never parse it. |
+| `account_id` | `UUID`, not null | Foreign key to `accounts.id` — the account the session belongs to. |
+| `created_at` | `TIMESTAMPTZ`, not null | Defaults to `NOW()` when the session is created. |
+
+Clients send the token on authenticated requests as `Authorization: Bearer <token>`; `GET /me` looks the token up in `sessions` and returns the linked account, or `401` when the token is missing or unknown.
+
+Known limitations (follow-ups, out of scope for the current slice): sessions do not expire, there is no logout, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest (storing only a digest and comparing on lookup) is the preferred hardening and is planned as a later change. The `Authorization` header is also not yet in the default CORS allow-list for browser clients.

@@ -1,9 +1,9 @@
 mod common;
 
 use axum::{
+    Router,
     body::Body,
     http::{Request, Response, StatusCode},
-    Router,
 };
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -309,5 +309,45 @@ async fn me_get_rejects_missing_unknown_or_invalid_token_with_401_json() {
     assert_eq!(
         bodies[1], bodies[2],
         "unknown and invalid token must share the same 401 error shape"
+    );
+}
+
+/// Acceptance slice (#59): Document the session storage shape and how clients
+/// present the `token` in `docs/docs/backend-api.mdx`.
+#[test]
+fn backend_api_docs_document_session_storage_and_bearer_token() {
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/docs/backend-api.mdx");
+    let docs = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
+    let lower = docs.to_ascii_lowercase();
+
+    assert!(
+        lower.contains("sessions"),
+        "backend-api docs must document the `sessions` table used to persist session tokens"
+    );
+    assert!(
+        lower.contains("opaque") && lower.contains("token"),
+        "backend-api docs must describe the session `token` as opaque"
+    );
+    assert!(
+        lower.contains("accounts.id"),
+        "backend-api docs must document that sessions link to `accounts.id`"
+    );
+    assert!(
+        lower.contains("created_at"),
+        "backend-api docs must document the sessions `created_at` timestamp"
+    );
+    assert!(
+        docs.contains("Authorization: Bearer <token>"),
+        "backend-api docs must document presenting the token as `Authorization: Bearer <token>`"
+    );
+    assert!(
+        docs.contains("GET /me"),
+        "backend-api docs must document the `GET /me` lookup route clients use with the Bearer token"
+    );
+    assert!(
+        docs.contains("401"),
+        "backend-api docs must document the 401 response for missing/unknown/invalid tokens on GET /me"
     );
 }
