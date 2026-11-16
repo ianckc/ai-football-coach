@@ -14,10 +14,18 @@ fn bearer_token(headers: &HeaderMap) -> Option<&str> {
     Some(token)
 }
 
+fn unauthorized() -> axum::response::Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({ "error": "invalid token" })),
+    )
+        .into_response()
+}
+
 /// Return `{ id, email }` for the account linked to `Authorization: Bearer <token>`.
 pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
     let Some(token) = bearer_token(&headers) else {
-        return StatusCode::UNAUTHORIZED.into_response();
+        return unauthorized();
     };
 
     match accounts::lookup_by_token(&state.pool, token).await {
@@ -29,7 +37,7 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> impl IntoR
             })),
         )
             .into_response(),
-        Err(LookupByTokenError::Unauthorized) => StatusCode::UNAUTHORIZED.into_response(),
+        Err(LookupByTokenError::Unauthorized) => unauthorized(),
         Err(LookupByTokenError::Internal) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
