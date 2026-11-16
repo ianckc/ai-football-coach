@@ -148,9 +148,18 @@ pub async fn login(
         return Err(LoginError::Unauthorized);
     }
 
-    Ok(LoginSession {
-        id,
-        email,
-        token: Uuid::new_v4().to_string(),
-    })
+    let token = Uuid::new_v4().to_string();
+    sqlx::query(
+        r"
+        INSERT INTO sessions (token, account_id)
+        VALUES ($1, $2)
+        ",
+    )
+    .bind(&token)
+    .bind(id)
+    .execute(pool)
+    .await
+    .map_err(|_| LoginError::Internal)?;
+
+    Ok(LoginSession { id, email, token })
 }
