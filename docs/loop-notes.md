@@ -11,6 +11,11 @@ Append a short note after each finished `run-ticket` run.
 - Machine fixes (prompts/gates/docs):
 ```
 
+### 2026-11-16 — ianckc/ai-football-coach#61
+- Rounds: 4 (+ review remediation for docs/CORS/SSR guard)
+- Outcome: Added frontend `/me` profile page (token guard → `GET /me` with Bearer; shows `id`/`email` on 200; clear error on 401/other; local docs). Review highs cleared: docs slice, CORS `Authorization` allow-list, SSR-safe `beforeLoad`. Medium: source-only auth test. `.force-red` absent.
+- Machine fixes (prompts/gates/docs): AGENTS.md product surface updated (`/me`); frontend + README `/me` local-flow docs; backend CORS allows `Authorization` for browser `GET /me`.
+
 ### 2026-11-16 — ianckc/ai-football-coach#59
 - Rounds: 5
 - Outcome: Persist backend session tokens in Postgres (`sessions` migration; login inserts token before `200`; `GET /me` with `Authorization: Bearer <token>` returns `{id,email}`; missing/unknown/invalid → `401` JSON; `backend-api.mdx` documents storage + Bearer presentation). Review: no unresolved critical/high after docs slice. Medium/low follow-ups noted (CORS `Authorization`, case-insensitive Bearer, JSON 500s, FK `ON DELETE`, hash tokens at rest). `.force-red` absent.

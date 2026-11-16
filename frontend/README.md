@@ -71,6 +71,20 @@ Create an account first via `/accounts/create` (or `POST /accounts`) if needed â
 
 By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/login`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply to browser `POST /login` calls as well.
 
+## Local backend for `/me`
+
+The `/me` profile page is only reachable when a session `token` from `/login` is present in `sessionStorage`. When logged in it calls backend `GET /me` with `Authorization: Bearer <token>` and shows the returned `id` and `email`. On `401` / other failure / unreachable backend it shows a clear error and does not invent profile fields. Logged-out visits redirect to `/login`.
+
+1. Start the backend (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
+
+2. Start the frontend (`npm run dev`).
+
+3. Log in at [http://localhost:3000/login](http://localhost:3000/login) first so a `token` is stored.
+
+4. Open [http://localhost:3000/me](http://localhost:3000/me).
+
+By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/me`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply; the backend allow-list includes `Authorization` for this Bearer call.
+
 ## Tests
 
 ```bash

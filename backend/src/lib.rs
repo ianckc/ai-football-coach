@@ -64,7 +64,11 @@ fn local_dev_cors(origins: Vec<HeaderValue>) -> CorsLayer {
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::ACCEPT])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::ACCEPT,
+            axum::http::header::AUTHORIZATION,
+        ])
 }
 
 /// Build the HTTP router using `CORS_ALLOWED_ORIGINS` when set.

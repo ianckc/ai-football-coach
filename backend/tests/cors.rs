@@ -37,6 +37,40 @@ async fn cors_reflects_configured_origin_on_preflight() {
 }
 
 #[tokio::test]
+async fn cors_allows_authorization_header_on_preflight() {
+    let pool = common::test_pool().await;
+    let app = app_with_cors_origins(
+        pool,
+        vec![HeaderValue::from_static("http://localhost:3000")],
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/me")
+                .header(header::ORIGIN, "http://localhost:3000")
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "authorization")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let allowed = response
+        .headers()
+        .get(header::ACCESS_CONTROL_ALLOW_HEADERS)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    assert!(
+        allowed.to_ascii_lowercase().contains("authorization"),
+        "preflight for browser GET /me must allow Authorization; got {allowed:?}"
+    );
+}
+
+#[tokio::test]
 async fn cors_does_not_reflect_unlisted_origin() {
     let pool = common::test_pool().await;
     let app = app_with_cors_origins(
