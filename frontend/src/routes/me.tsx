@@ -50,12 +50,35 @@ function Me() {
       })
   }, [])
 
+  function handleLogout() {
+    void fetch(`${backendBaseUrl}/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then((response) => {
+        if (response.status !== 200) {
+          setError('Unable to logout')
+          return
+        }
+        setId(null)
+        setEmail(null)
+        setError(null)
+        window.location.replace('/login')
+      })
+      .catch(() => {
+        setError('Backend unavailable')
+      })
+  }
+
   return (
     <main>
       <h1>Profile</h1>
       {id ? <p>{id}</p> : null}
       {email ? <p>{email}</p> : null}
       {error ? <p>{error}</p> : null}
+      <button type="button" onClick={handleLogout}>
+        Logout
+      </button>
     </main>
   )
 }
