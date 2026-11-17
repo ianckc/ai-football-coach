@@ -1,6 +1,7 @@
 mod accounts;
 mod health;
 mod login;
+mod logout;
 mod me;
 
 use crate::state::AppState;
@@ -14,5 +15,6 @@ pub fn router() -> Router<AppState> {
         .route("/health", get(health::health))
         .route("/accounts", post(accounts::create_account))
         .route("/login", post(login::login))
+        .route("/logout", post(logout::logout))
         .route("/me", get(me::me))
 }

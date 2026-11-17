@@ -62,8 +62,8 @@ Source under `backend/src/` is split by concern:
 | `lib.rs` | Module tree, CORS, `app` / `app_with_cors_origins`, pool connect + migrations |
 | `main.rs` | Bind and serve (thin binary) |
 | `state.rs` | Shared `AppState` (Postgres pool) |
-| `routes/` | HTTP handlers and route registration (`/health`, `/accounts`, `/login`, `/me`) |
-| `accounts/` | Account domain logic (validation, password hashing, insert / uniqueness, login, session creation, token lookup) |
+| `routes/` | HTTP handlers and route registration (`/health`, `/accounts`, `/login`, `/logout`, `/me`) |
+| `accounts/` | Account domain logic (validation, password hashing, insert / uniqueness, login, session creation / deletion, token lookup) |
 
 Add new endpoints under `routes/`; keep validation, hashing, and persistence in domain modules (e.g. `accounts/`), not in a monolithic `lib.rs`.
 
@@ -147,6 +147,25 @@ Authenticate a coach with `{ "email", "password" }` (same JSON shape as `POST /a
 | `400` | Missing, empty, wrong JSON type, or invalid email/password input | JSON object (e.g. `{ "error": "…" }`) |
 | `401` | Unknown email or wrong password | JSON object (e.g. `{ "error": "…" }`) |
 
+### `POST /logout`
+
+End the browser session. Send the opaque session token in the `session` cookie (set by `POST /login`):
+
+```text
+Cookie: session=<token>
+```
+
+On success the handler **clears the session cookie** (`Set-Cookie` with an empty value and/or `Max-Age=0`, still `HttpOnly`) and **invalidates (deletes) the matching `sessions` row**. After logout, `GET /me` with that cookie returns `401`.
+
+**Success:** `200 OK`
+
+**Example**
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/logout \
+  -H 'Cookie: session=<token>' -c - -b -
+```
+
 ### `GET /me`
 
 Return the account linked to a session token. Present the token from `POST /login` in the `Authorization` header:
@@ -187,6 +206,6 @@ A successful `POST /login` inserts a row into the Postgres `sessions` table (mig
 | `account_id` | `UUID`, not null | Foreign key to `accounts.id` — the account the session belongs to. |
 | `created_at` | `TIMESTAMPTZ`, not null | Defaults to `NOW()` when the session is created. |
 
-Clients send the token on authenticated requests as `Authorization: Bearer <token>`; `GET /me` looks the token up in `sessions` and returns the linked account, or `401` when the token is missing or unknown.
+Clients send the token on authenticated requests as `Authorization: Bearer <token>` or the httpOnly `session` cookie; `GET /me` looks the token up in `sessions` and returns the linked account, or `401` when the token is missing or unknown. `POST /logout` clears the session cookie and deletes the matching `sessions` row.
 
-Known limitations (follow-ups, out of scope for the current slice): sessions do not expire, there is no logout, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest (storing only a digest and comparing on lookup) is the preferred hardening and is planned as a later change. Local CORS defaults allow `Authorization` (along with `Content-Type` and `Accept`) so browser `GET /me` from the Vite origin can send `Authorization: Bearer <token>`.
+Known limitations (follow-ups, out of scope for the current slice): sessions do not expire, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest (storing only a digest and comparing on lookup) is the preferred hardening and is planned as a later change. Local CORS defaults allow `Authorization` (along with `Content-Type` and `Accept`) so browser `GET /me` from the Vite origin can send `Authorization: Bearer <token>`.
