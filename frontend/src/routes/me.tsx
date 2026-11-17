@@ -1,13 +1,18 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
+import { getCookie } from '@tanstack/react-start/server'
 import { useEffect, useState } from 'react'
 
+/** SSR-readable session check via the httpOnly `session` cookie. */
+const hasSessionCookie = createServerFn({ method: 'GET' }).handler(() => {
+  const session = getCookie('session')
+  return Boolean(session)
+})
+
 export const Route = createFileRoute('/me')({
-  beforeLoad: () => {
-    // Node exposes an empty global `sessionStorage`; only trust the browser.
-    if (typeof window === 'undefined') {
-      return
-    }
-    if (!sessionStorage.getItem('token')) {
+  beforeLoad: async () => {
+    const loggedIn = await hasSessionCookie()
+    if (!loggedIn) {
       throw redirect({ to: '/login' })
     }
   },
