@@ -75,7 +75,7 @@ npm run dev
 
 Starts the frontend at [http://localhost:3000](http://localhost:3000).
 
-To exercise `/health`, `/accounts/create`, `/login`, or `/me` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health), [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create), [http://localhost:3000/login](http://localhost:3000/login), or [http://localhost:3000/me](http://localhost:3000/me). Create an account and log in first before `/me` (it needs the session `token` from `/login`). Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx).
+To exercise `/health`, `/accounts/create`, `/login`, or `/me` against a local backend, run `backend/` (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) and open [http://localhost:3000/health](http://localhost:3000/health), [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create), [http://localhost:3000/login](http://localhost:3000/login), or [http://localhost:3000/me](http://localhost:3000/me). Local auth is an httpOnly `session` cookie (`SameSite=None; Secure`) with CORS credentials for Vite `localhost:3000` → API `127.0.0.1:8000`: create an account, log in, open `/me`, then `POST /logout` to clear the session. Optional: `cp frontend/.env.example frontend/.env` to set `VITE_BACKEND_BASE_URL` (defaults to `http://127.0.0.1:8000`). See [`docs/docs/frontend.mdx`](docs/docs/frontend.mdx) and [`frontend/README.md`](frontend/README.md).
 ### Tests
 
 TypeScript Vitest acceptance checks live under `frontend/tests/`.

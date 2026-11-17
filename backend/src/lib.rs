@@ -61,8 +61,12 @@ fn cors_origins_from_env() -> Vec<HeaderValue> {
 }
 
 fn local_dev_cors(origins: Vec<HeaderValue>) -> CorsLayer {
+    // Credentialed browser sessions (Vite localhost:3000 → API 127.0.0.1:8000)
+    // need Access-Control-Allow-Credentials with an explicit origin allow-list
+    // (not `*`).
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
+        .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([
             axum::http::header::CONTENT_TYPE,

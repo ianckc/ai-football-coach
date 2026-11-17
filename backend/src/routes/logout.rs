@@ -23,14 +23,9 @@ fn session_cookie_token(headers: &HeaderMap) -> Option<&str> {
 }
 
 /// Clear the httpOnly `session` cookie (empty value + Max-Age=0).
+/// Attributes match login (`SameSite=None; Secure`) so the browser clears the same cookie.
 fn clear_session_cookie() -> HeaderValue {
-    let secure = std::env::var("APP_ENV")
-        .is_ok_and(|env| !env.eq_ignore_ascii_case("local") && !env.eq_ignore_ascii_case("test"));
-    let mut value = String::from("session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-    if secure {
-        value.push_str("; Secure");
-    }
-    HeaderValue::from_str(&value).expect("clear session Set-Cookie must be a valid header value")
+    HeaderValue::from_static("session=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0")
 }
 
 /// Clear the session cookie and delete the matching `sessions` row.

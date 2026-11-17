@@ -19,16 +19,13 @@ fn error_json(status: StatusCode, message: &str) -> axum::response::Response {
     (status, Json(json!({ "error": message }))).into_response()
 }
 
-/// Build `Set-Cookie` for the opaque session token (HttpOnly + SameSite).
-/// Secure is omitted unless `APP_ENV` is set to a non-local value so
-/// http://localhost can store the cookie during local/test runs.
+/// Build `Set-Cookie` for the opaque session token.
+///
+/// Local Vite (`http://localhost:3000`) → API (`http://127.0.0.1:8000`) is
+/// cross-site, so the cookie uses `SameSite=None; Secure` (required for
+/// credentialed `fetch`). HttpOnly keeps the opaque token out of JS.
 fn session_set_cookie(token: &str) -> HeaderValue {
-    let secure = std::env::var("APP_ENV")
-        .is_ok_and(|env| !env.eq_ignore_ascii_case("local") && !env.eq_ignore_ascii_case("test"));
-    let mut value = format!("session={token}; Path=/; HttpOnly; SameSite=Lax");
-    if secure {
-        value.push_str("; Secure");
-    }
+    let value = format!("session={token}; Path=/; HttpOnly; SameSite=None; Secure");
     // Session tokens are UUID strings (ASCII); this cannot fail for valid tokens.
     HeaderValue::from_str(&value).expect("session Set-Cookie must be a valid header value")
 }

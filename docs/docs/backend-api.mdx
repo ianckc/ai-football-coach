@@ -38,7 +38,7 @@ cargo run
 
 `DATABASE_URL` is required for `cargo run` (from the environment or `backend/.env`). Copy from `backend/.env.example`. Do not commit real credentials; Compose passwords are for local use only.
 
-Optional local CORS: set `CORS_ALLOWED_ORIGINS` (comma-separated browser origins) when the frontend is not on port 3000. Defaults are `http://localhost:3000` and `http://127.0.0.1:3000`. This does not change the `GET /health` response contract.
+Optional local CORS: set `CORS_ALLOWED_ORIGINS` (comma-separated browser origins) when the frontend is not on port 3000. Defaults are `http://localhost:3000` and `http://127.0.0.1:3000`, with `Access-Control-Allow-Credentials: true` so credentialed cookie sessions work. Vite on `localhost:3000` → API on `127.0.0.1:8000` is cross-site, so the session cookie uses `SameSite=None; Secure`. This does not change the `GET /health` response contract.
 
 Requires Rust **1.100** (pinned by root `rust-toolchain.toml`; MSRV in `backend/Cargo.toml`). Schema lives in `backend/migrations/` and is applied via sqlx on startup (and in tests).
 
@@ -128,7 +128,7 @@ curl -sS -X POST http://127.0.0.1:8000/accounts \
 
 ### `POST /login`
 
-Authenticate a coach with `{ "email", "password" }` (same JSON shape as `POST /accounts`). On success a new session is created and its opaque token is returned.
+Authenticate a coach with `{ "email", "password" }` (same JSON shape as `POST /accounts`). On success a new session is created, its opaque token is returned in the JSON body, and the response also sets an httpOnly `session` cookie (`SameSite=None; Secure; Path=/`) so credentialed browser clients from local Vite do not need to read the token from JS.
 
 **Success:** `200 OK`
 
@@ -168,7 +168,7 @@ curl -sS -X POST http://127.0.0.1:8000/logout \
 
 ### `GET /me`
 
-Return the account linked to a session token. Present the token from `POST /login` in the `Authorization` header:
+Return the account linked to a session token. Browser clients should send the httpOnly `session` cookie from `POST /login` (with `credentials: 'include'`). Non-browser clients may still use:
 
 ```text
 Authorization: Bearer <token>
@@ -187,13 +187,13 @@ Authorization: Bearer <token>
 
 | Status | When | Body shape |
 |--------|------|------------|
-| `401` | `Authorization` header missing, not a `Bearer` token, or the token is unknown | JSON object (e.g. `{ "error": "invalid token" }`) |
+| `401` | Session cookie / `Authorization` missing, invalid, or the token is unknown | JSON object (e.g. `{ "error": "invalid token" }`) |
 
 **Example**
 
 ```bash
 curl -sS http://127.0.0.1:8000/me \
-  -H 'Authorization: Bearer <token>'
+  -H 'Cookie: session=<token>'
 ```
 
 ## Sessions
@@ -206,6 +206,6 @@ A successful `POST /login` inserts a row into the Postgres `sessions` table (mig
 | `account_id` | `UUID`, not null | Foreign key to `accounts.id` — the account the session belongs to. |
 | `created_at` | `TIMESTAMPTZ`, not null | Defaults to `NOW()` when the session is created. |
 
-Clients send the token on authenticated requests as `Authorization: Bearer <token>` or the httpOnly `session` cookie; `GET /me` looks the token up in `sessions` and returns the linked account, or `401` when the token is missing or unknown. `POST /logout` clears the session cookie and deletes the matching `sessions` row.
+**Local login → `/me` → logout:** `POST /login` sets the httpOnly `session` cookie (`SameSite=None; Secure` for Vite `localhost:3000` → API `127.0.0.1:8000`). `GET /me` authenticates from that cookie (or Bearer). `POST /logout` clears the cookie and deletes the matching `sessions` row. Local CORS allows credentials plus `Authorization` / `Content-Type` / `Accept`.
 
-Known limitations (follow-ups, out of scope for the current slice): sessions do not expire, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest (storing only a digest and comparing on lookup) is the preferred hardening and is planned as a later change. Local CORS defaults allow `Authorization` (along with `Content-Type` and `Accept`) so browser `GET /me` from the Vite origin can send `Authorization: Bearer <token>`.
+Known limitations (follow-ups): sessions do not expire, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest is the preferred hardening and is planned as a later change.
