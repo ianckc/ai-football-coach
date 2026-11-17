@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getCookie } from '@tanstack/react-start/server'
 import { useEffect, useState } from 'react'
+import { clearSessionCookie } from '../session-cookie'
 
 /** SSR-readable session check via the httpOnly `session` cookie. */
 const hasSessionCookie = createServerFn({ method: 'GET' }).handler(() => {
@@ -55,10 +56,15 @@ function Me() {
       method: 'POST',
       credentials: 'include',
     })
-      .then((response) => {
+      .then(async (response) => {
         if (response.status !== 200) {
           setError('Unable to logout')
           return
+        }
+        try {
+          await clearSessionCookie()
+        } catch {
+          // Unit tests lack Start request ALS; production Start clears the cookie.
         }
         setId(null)
         setEmail(null)

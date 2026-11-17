@@ -23,7 +23,7 @@ fn error_json(status: StatusCode, message: &str) -> axum::response::Response {
 ///
 /// Local Vite (`http://localhost:3000`) → API (`http://127.0.0.1:8000`) is
 /// cross-site, so the cookie uses `SameSite=None; Secure` (required for
-/// credentialed `fetch`). HttpOnly keeps the opaque token out of JS.
+/// credentialed `fetch`). `HttpOnly` keeps the opaque token out of JS.
 fn session_set_cookie(token: &str) -> HeaderValue {
     let value = format!("session={token}; Path=/; HttpOnly; SameSite=None; Secure");
     // Session tokens are UUID strings (ASCII); this cannot fail for valid tokens.

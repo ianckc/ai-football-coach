@@ -387,10 +387,11 @@ fn cookie_attribute_value<'a>(set_cookie: &'a str, name: &str) -> Option<&'a str
 }
 
 /// Acceptance slice (#71): On successful `POST /login`, set a session cookie
-/// (httpOnly, Secure in non-local env, SameSite appropriate for the local +
+/// (httpOnly, Secure in non-local env, `SameSite` appropriate for the local +
 /// deployed topology) whose value is the opaque session `token` already stored
 /// in Postgres `sessions`; do not require the browser to read the token from
 /// the JSON body to stay logged in.
+#[allow(clippy::too_many_lines)]
 #[tokio::test]
 async fn login_post_sets_httponly_session_cookie_with_opaque_token() {
     let pool = common::test_pool().await;

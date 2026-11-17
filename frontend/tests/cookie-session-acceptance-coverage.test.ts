@@ -44,7 +44,8 @@ describe('cookie session acceptance coverage', () => {
       {
         area: 'login cookie credentials (frontend)',
         path: join(frontendRoot, 'tests/login-cookie-session.test.tsx'),
-        mustMatch: /credentials:\s*['"]include['"]|credentials['"]?\s*,?\s*['"]include['"]|\.toBe\(['"]include['"]\)/,
+        mustMatch:
+          /credentials:\s*['"]include['"]|credentials['"]?\s*,?\s*['"]include['"]|\.toBe\(['"]include['"]\)/,
       },
       {
         area: '/me works with cookie credentials (frontend)',

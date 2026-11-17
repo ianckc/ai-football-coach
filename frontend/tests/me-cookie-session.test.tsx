@@ -48,7 +48,10 @@ describe('me cookie session', () => {
     render(<Me />)
 
     await waitFor(() => {
-      expect(fetchMock, 'cookie-based /me must call fetch without a sessionStorage token').toHaveBeenCalled()
+      expect(
+        fetchMock,
+        'cookie-based /me must call fetch without a sessionStorage token',
+      ).toHaveBeenCalled()
     })
 
     const firstCall = fetchMock.mock.calls[0]

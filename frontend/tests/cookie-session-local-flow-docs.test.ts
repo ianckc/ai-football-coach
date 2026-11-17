@@ -63,9 +63,13 @@ describe('cookie session local flow docs', () => {
     expect(
       frontendLower,
       'frontend docs must not still instruct storing the session token in sessionStorage for the browser auth session',
-    ).not.toMatch(/token` in `sessionstorage|token in sessionstorage|stores the `token` in `sessionstorage/)
+    ).not.toMatch(
+      /token` in `sessionstorage|token in sessionstorage|stores the `token` in `sessionstorage/,
+    )
 
-    const flowDocs = [frontendReadme, frontendDocs, backendDocs, repoReadme].join('\n').toLowerCase()
+    const flowDocs = [frontendReadme, frontendDocs, backendDocs, repoReadme]
+      .join('\n')
+      .toLowerCase()
     expect(
       flowDocs.includes('login') && flowDocs.includes('/me') && flowDocs.includes('logout'),
       'docs must cover the local login → /me → logout flow',

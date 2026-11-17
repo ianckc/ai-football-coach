@@ -17,7 +17,7 @@ describe('logout cookie session', () => {
   })
 
   it('POSTs /logout with credentials to clear the session cookie', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input)
       if (url.endsWith('/me') || url.includes('/me')) {
         return Promise.resolve(

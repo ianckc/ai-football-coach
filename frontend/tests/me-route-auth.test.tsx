@@ -22,10 +22,9 @@ describe('me route auth guard', () => {
     const source = readFileSync(meRoutePath, 'utf8')
     expect(source).toContain("createFileRoute('/me')")
     expect(source, 'protected /me must declare a beforeLoad auth guard').toMatch(/\bbeforeLoad\b/)
-    expect(
-      source,
-      'route must check the session cookie from login (not sessionStorage)',
-    ).toMatch(/\bgetCookie\b|\bcookie\b|\bCookie\b/i)
+    expect(source, 'route must check the session cookie from login (not sessionStorage)').toMatch(
+      /\bgetCookie\b|\bcookie\b|\bCookie\b/i,
+    )
     expect(
       source,
       'SSR-safe guard must not rely on browser sessionStorage for the auth session',

@@ -32,21 +32,20 @@ describe('me SSR-safe route guard', () => {
       'SSR-safe guard must not rely on browser localStorage for the auth session',
     ).not.toMatch(/localStorage/)
 
-    expect(
-      source,
-      'unauthenticated users must be sent to /login',
-    ).toMatch(/redirect\s*\(|to:\s*['"]\/login['"]|['"]\/login['"]/)
-
-    expect(
-      source,
-      'must not skip the auth guard on the server (typeof window === "undefined" early return) — that either leaves SSR ungarded or bounces logged-in users after hydrate when sessionStorage is empty',
-    ).not.toMatch(
-      /typeof\s+window\s*===\s*['"]undefined['"][\s\S]{0,80}?\breturn\b/,
+    expect(source, 'unauthenticated users must be sent to /login').toMatch(
+      /redirect\s*\(|to:\s*['"]\/login['"]|['"]\/login['"]/,
     )
 
     expect(
       source,
+      'must not skip the auth guard on the server (typeof window === "undefined" early return) — that either leaves SSR ungarded or bounces logged-in users after hydrate when sessionStorage is empty',
+    ).not.toMatch(/typeof\s+window\s*===\s*['"]undefined['"][\s\S]{0,80}?\breturn\b/)
+
+    expect(
+      source,
       'SSR-safe guard must use the session cookie (readable on the server) rather than JS-only storage',
-    ).toMatch(/\bgetCookie\b|\bcookie\b|\bCookie\b|document\.cookie|headers\.get\(\s*['"]cookie['"]/i)
+    ).toMatch(
+      /\bgetCookie\b|\bcookie\b|\bCookie\b|document\.cookie|headers\.get\(\s*['"]cookie['"]/i,
+    )
   })
 })

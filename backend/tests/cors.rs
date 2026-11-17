@@ -87,10 +87,7 @@ async fn cors_allows_credentials_for_local_vite_origin() {
                 .uri("/login")
                 .header(header::ORIGIN, "http://localhost:3000")
                 .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
-                .header(
-                    header::ACCESS_CONTROL_REQUEST_HEADERS,
-                    "content-type",
-                )
+                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
                 .body(Body::empty())
                 .unwrap(),
         )
