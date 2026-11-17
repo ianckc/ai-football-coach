@@ -39,9 +39,11 @@ cp .env.example .env   # optional; gitignored
 npm run dev
 ```
 
-### CORS
+### CORS and credentialed cookies
 
-The backend allows browser calls from Vite on port 3000 by default (`http://localhost:3000` and `http://127.0.0.1:3000`). To allow other local origins, set `CORS_ALLOWED_ORIGINS` in `backend/.env` (comma-separated). See [`backend/.env.example`](../backend/.env.example).
+The backend allows browser calls from Vite on port 3000 by default (`http://localhost:3000` and `http://127.0.0.1:3000`) with `Access-Control-Allow-Credentials: true`. To allow other local origins, set `CORS_ALLOWED_ORIGINS` in `backend/.env` (comma-separated). See [`backend/.env.example`](../backend/.env.example).
+
+Vite on `http://localhost:3000` talking to the API on `http://127.0.0.1:8000` is **cross-site**. The session cookie is therefore `HttpOnly; SameSite=None; Secure`, and browser calls use `credentials: 'include'` so the cookie is stored and sent. Chrome treats `http://127.0.0.1` as a secure context for this local topology.
 
 ## Local backend for `/accounts/create`
 
@@ -55,11 +57,11 @@ The `/accounts/create` page submits email and password to the backend `POST /acc
 
 By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/accounts`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply to browser `POST /accounts` calls as well.
 
-## Local backend for `/login`
+## Local cookie session flow: `/login` → `/me` → logout
 
-The `/login` page submits email and password to the backend `POST /login` endpoint. On success it stores the `token` in `sessionStorage` and shows a logged-in state with the coach email. On `401` / other failure / unreachable backend it shows a clear error and leaves the user logged out.
+Browser auth uses **httpOnly `session` cookies** (not JS-readable storage). Frontend calls use `credentials: 'include'`.
 
-Create an account first via `/accounts/create` (or `POST /accounts`) if needed — there is no account-creation UI on the login page.
+Vite (`localhost:3000`) and the API (`127.0.0.1:8000`) are different hosts, so login establishes two cookies with the same opaque token: the API cookie (`SameSite=None; Secure`) for credentialed `/me` / `/logout`, and a frontend-origin cookie (`SameSite=Lax`, via `establishSessionCookie`) so SSR `getCookie('session')` can keep logged-in users on `/me` across full page loads.
 
 1. Start the backend (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
 
@@ -67,23 +69,13 @@ Create an account first via `/accounts/create` (or `POST /accounts`) if needed �
 
 3. Create an account at [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create) if you do not already have one.
 
-4. Open [http://localhost:3000/login](http://localhost:3000/login).
+4. Open [http://localhost:3000/login](http://localhost:3000/login) and sign in. On success both cookies are set and the page shows a logged-in state with the coach email. On `401` / other failure / unreachable backend it shows a clear error and leaves the user logged out.
 
-By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/login`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply to browser `POST /login` calls as well.
+5. Open [http://localhost:3000/me](http://localhost:3000/me). The SSR guard uses the frontend-origin cookie; the page calls `GET /me` with credentials (API cookie). On success it shows `id` and `email`. On failure it shows a clear error. Logged-out visits redirect to `/login`.
 
-## Local backend for `/me`
+6. Use the **Logout** button on `/me` (or backend `POST /logout`). That clears both cookies and deletes the matching `sessions` row. After logout, `GET /me` with the old API cookie returns `401`.
 
-The `/me` profile page is only reachable when a session `token` from `/login` is present in `sessionStorage`. When logged in it calls backend `GET /me` with `Authorization: Bearer <token>` and shows the returned `id` and `email`. On `401` / other failure / unreachable backend it shows a clear error and does not invent profile fields. Logged-out visits redirect to `/login`.
-
-1. Start the backend (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
-
-2. Start the frontend (`npm run dev`).
-
-3. Log in at [http://localhost:3000/login](http://localhost:3000/login) first so a `token` is stored.
-
-4. Open [http://localhost:3000/me](http://localhost:3000/me).
-
-By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `http://127.0.0.1:8000/me`). Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. Local CORS notes above apply; the backend allow-list includes `Authorization` for this Bearer call.
+By default pages use backend base URL `http://127.0.0.1:8000`. Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. CORS / `SameSite=None` notes above apply to the credentialed API calls.
 
 ## Tests
 

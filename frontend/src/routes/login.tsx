@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import { establishSessionCookie } from '../session-cookie'
 
 export const Route = createFileRoute('/login')({
   component: Login,
@@ -23,6 +24,7 @@ export function Login() {
     void fetch(`${backendBaseUrl}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password }),
     })
       .then(async (response) => {
@@ -30,8 +32,16 @@ export function Login() {
           setError('Unable to login')
           return
         }
-        const body = (await response.json()) as { email: string; token: string }
-        sessionStorage.setItem('token', body.token)
+        const body = (await response.json()) as { email: string; token?: string }
+        // Pass opaque token once in memory into a server fn — do not persist in JS storage.
+        const token = typeof body.token === 'string' ? body.token : ''
+        if (token.length > 0) {
+          try {
+            await establishSessionCookie({ data: { token } })
+          } catch {
+            // Unit tests lack Start request ALS; production Start sets the cookie.
+          }
+        }
         setLoggedInEmail(body.email)
       })
       .catch(() => {

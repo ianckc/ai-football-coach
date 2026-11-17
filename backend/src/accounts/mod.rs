@@ -201,3 +201,24 @@ pub async fn lookup_by_token(
         None => Err(LookupByTokenError::Unauthorized),
     }
 }
+
+pub enum DeleteSessionError {
+    Internal,
+}
+
+/// Invalidate a session by deleting the matching `sessions` row for `token`.
+///
+/// Missing rows are treated as already invalidated (no error).
+pub async fn delete_session_by_token(pool: &PgPool, token: &str) -> Result<(), DeleteSessionError> {
+    if token.is_empty() {
+        return Ok(());
+    }
+
+    sqlx::query("DELETE FROM sessions WHERE token = $1")
+        .bind(token)
+        .execute(pool)
+        .await
+        .map_err(|_| DeleteSessionError::Internal)?;
+
+    Ok(())
+}
