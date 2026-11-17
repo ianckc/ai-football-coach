@@ -59,7 +59,9 @@ By default the page uses backend base URL `http://127.0.0.1:8000` (so it calls `
 
 ## Local cookie session flow: `/login` → `/me` → logout
 
-Browser auth uses an **httpOnly `session` cookie** from `POST /login` (not JS-readable storage). Frontend calls use `credentials: 'include'`.
+Browser auth uses **httpOnly `session` cookies** (not JS-readable storage). Frontend calls use `credentials: 'include'`.
+
+Vite (`localhost:3000`) and the API (`127.0.0.1:8000`) are different hosts, so login establishes two cookies with the same opaque token: the API cookie (`SameSite=None; Secure`) for credentialed `/me` / `/logout`, and a frontend-origin cookie (`SameSite=Lax`, via `establishSessionCookie`) so SSR `getCookie('session')` can keep logged-in users on `/me` across full page loads.
 
 1. Start the backend (default [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
 
@@ -67,13 +69,13 @@ Browser auth uses an **httpOnly `session` cookie** from `POST /login` (not JS-re
 
 3. Create an account at [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create) if you do not already have one.
 
-4. Open [http://localhost:3000/login](http://localhost:3000/login) and sign in. On success the API sets the `session` cookie and the page shows a logged-in state with the coach email. On `401` / other failure / unreachable backend it shows a clear error and leaves the user logged out.
+4. Open [http://localhost:3000/login](http://localhost:3000/login) and sign in. On success both cookies are set and the page shows a logged-in state with the coach email. On `401` / other failure / unreachable backend it shows a clear error and leaves the user logged out.
 
-5. Open [http://localhost:3000/me](http://localhost:3000/me). The page calls `GET /me` with credentials (cookie). On success it shows `id` and `email`. On failure it shows a clear error. Logged-out visits redirect to `/login`.
+5. Open [http://localhost:3000/me](http://localhost:3000/me). The SSR guard uses the frontend-origin cookie; the page calls `GET /me` with credentials (API cookie). On success it shows `id` and `email`. On failure it shows a clear error. Logged-out visits redirect to `/login`.
 
-6. Log out with backend `POST /logout` (clears the session cookie and deletes the matching `sessions` row). After logout, `GET /me` with the old cookie returns `401`.
+6. Use the **Logout** button on `/me` (or backend `POST /logout`). That clears both cookies and deletes the matching `sessions` row. After logout, `GET /me` with the old API cookie returns `401`.
 
-By default pages use backend base URL `http://127.0.0.1:8000`. Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. CORS / `SameSite=None` notes above apply to this credentialed flow.
+By default pages use backend base URL `http://127.0.0.1:8000`. Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. CORS / `SameSite=None` notes above apply to the credentialed API calls.
 
 ## Tests
 

@@ -11,6 +11,11 @@ Append a short note after each finished `run-ticket` run.
 - Machine fixes (prompts/gates/docs):
 ```
 
+### 2026-11-17 — ianckc/ai-football-coach#71
+- Rounds: 7 (+ Agent B remediation after review for SSR dual-cookie + rustfmt/static)
+- Outcome: Replaced browser `sessionStorage` Bearer auth with httpOnly cookie sessions (API `Set-Cookie` on login; `GET /me` cookie or Bearer; frontend credentials + no JS storage; SSR-safe `/me` guard; `POST /logout` + Logout UI; CORS credentials + local-flow docs). Review highs cleared: frontend-origin mirrored session cookie for SSR; `quality-static` green. Medium follow-ups: source-string SSR tests, duplicated cookie parsers, swallowed server-fn errors, dual-cookie docs (addressed at update-docs). `.force-red` absent.
+- Machine fixes (prompts/gates/docs): AGENTS.md product surface updated (cookie session + logout); frontend/backend-api/README dual-cookie SSR notes.
+
 ### 2026-11-16 — ianckc/ai-football-coach#61
 - Rounds: 4 (+ review remediation for docs/CORS/SSR guard)
 - Outcome: Added frontend `/me` profile page (token guard → `GET /me` with Bearer; shows `id`/`email` on 200; clear error on 401/other; local docs). Review highs cleared: docs slice, CORS `Authorization` allow-list, SSR-safe `beforeLoad`. Medium: source-only auth test. `.force-red` absent.

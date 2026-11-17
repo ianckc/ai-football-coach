@@ -206,6 +206,6 @@ A successful `POST /login` inserts a row into the Postgres `sessions` table (mig
 | `account_id` | `UUID`, not null | Foreign key to `accounts.id` — the account the session belongs to. |
 | `created_at` | `TIMESTAMPTZ`, not null | Defaults to `NOW()` when the session is created. |
 
-**Local login → `/me` → logout:** `POST /login` sets the httpOnly `session` cookie (`SameSite=None; Secure` for Vite `localhost:3000` → API `127.0.0.1:8000`). `GET /me` authenticates from that cookie (or Bearer). `POST /logout` clears the cookie and deletes the matching `sessions` row. Local CORS allows credentials plus `Authorization` / `Content-Type` / `Accept`.
+**Local login → `/me` → logout:** `POST /login` sets the httpOnly `session` cookie on the API host (`SameSite=None; Secure` for Vite `localhost:3000` → API `127.0.0.1:8000`). `GET /me` authenticates from that cookie (or Bearer). `POST /logout` clears the API cookie and deletes the matching `sessions` row. The frontend also mirrors the opaque token into a frontend-origin httpOnly cookie so SSR route guards on `localhost` can see a logged-in session (see [`frontend.mdx`](./frontend.mdx)). Local CORS allows credentials plus `Authorization` / `Content-Type` / `Accept`.
 
 Known limitations (follow-ups): sessions do not expire, and the `token` is stored in **plaintext** in `sessions.token`. Hashing the token at rest is the preferred hardening and is planned as a later change.

@@ -73,7 +73,12 @@ The same local `/accounts/create` setup is summarized in [`frontend/README.md`](
 
 ## Local cookie session flow: `/login` → `/me` → logout
 
-Browser auth uses an **httpOnly `session` cookie** set by `POST /login` (not JS-readable storage). Frontend `fetch` calls use `credentials: 'include'`.
+Browser auth uses **httpOnly `session` cookies** (not JS-readable storage). Frontend `fetch` calls use `credentials: 'include'`.
+
+Because Vite (`localhost:3000`) and the API (`127.0.0.1:8000`) are different hosts, there are two cookies with the same opaque token:
+
+- **API host** (`127.0.0.1`): set by `POST /login` as `HttpOnly; SameSite=None; Secure` — sent on credentialed `GET /me` / `POST /logout`.
+- **Frontend host** (`localhost`): mirrored after login via a TanStack Start server function (`establishSessionCookie`) as `HttpOnly; SameSite=Lax` — visible to SSR `getCookie('session')` so the `/me` route guard does not bounce logged-in users on full page loads. Cleared on logout alongside the API cookie.
 
 1. Start the backend (defaults to [http://127.0.0.1:8000](http://127.0.0.1:8000)) as in the `/health` section above.
 
@@ -81,13 +86,13 @@ Browser auth uses an **httpOnly `session` cookie** set by `POST /login` (not JS-
 
 3. Create an account at [http://localhost:3000/accounts/create](http://localhost:3000/accounts/create) if you do not already have one.
 
-4. Open [http://localhost:3000/login](http://localhost:3000/login) and submit email and password. On `200` the API sets the httpOnly session cookie and the page shows a logged-in state with the coach `email` (never the password). On `401` or other failure (including unreachable backend), it shows a clear error and leaves the user logged out.
+4. Open [http://localhost:3000/login](http://localhost:3000/login) and submit email and password. On `200` the API sets its session cookie, the frontend mirrors the opaque token into the SSR-visible cookie, and the page shows a logged-in state with the coach `email` (never the password). On `401` or other failure (including unreachable backend), it shows a clear error and leaves the user logged out.
 
-5. Open [http://localhost:3000/me](http://localhost:3000/me). The page calls `GET /me` with cookie credentials and displays the returned `id` and `email`. On failure it shows a clear error. Logged-out visits redirect to `/login`.
+5. Open [http://localhost:3000/me](http://localhost:3000/me). The SSR guard checks the frontend-origin cookie; the page calls `GET /me` with cookie credentials and displays the returned `id` and `email`. On failure it shows a clear error. Logged-out visits redirect to `/login`.
 
-6. Call backend `POST /logout` to clear the session cookie and delete the matching `sessions` row. After logout, `GET /me` with the old cookie returns `401`.
+6. Use the **Logout** button on `/me` (or `POST /logout` with the API cookie). That clears both cookies and deletes the matching `sessions` row. After logout, `GET /me` with the old API cookie returns `401`.
 
-By default pages use backend base URL `http://127.0.0.1:8000`. Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. The CORS / `SameSite=None` notes above apply to this credentialed flow.
+By default pages use backend base URL `http://127.0.0.1:8000`. Override with `VITE_BACKEND_BASE_URL` the same way as `/health`. The CORS / `SameSite=None` notes above apply to the credentialed API calls.
 
 The same local login → `/me` → logout setup is summarized in [`frontend/README.md`](../../frontend/README.md).
 
