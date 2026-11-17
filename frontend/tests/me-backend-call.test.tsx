@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Route } from '../src/routes/me'
 
 /**
- * Acceptance slice (ianckc/ai-football-coach#61):
- * When logged in, call backend `GET /me` with `Authorization: Bearer <token>`.
+ * Acceptance slice (ianckc/ai-football-coach#61), superseded for auth transport by #71:
+ * When logged in, call backend `GET /me` using the backend base URL with
+ * cookie credentials (not `Authorization: Bearer` from `sessionStorage`).
  */
 describe('me backend call', () => {
   afterEach(() => {
@@ -14,10 +15,7 @@ describe('me backend call', () => {
     vi.restoreAllMocks()
   })
 
-  it('when logged in, GETs /me with Authorization Bearer token using the backend base URL', async () => {
-    const token = 'opaque-session-token'
-    sessionStorage.setItem('token', token)
-
+  it('GETs /me with credentials using the backend base URL and without Authorization Bearer', async () => {
     const fetchMock = vi.fn(
       (..._args: Parameters<typeof fetch>): Promise<Response> =>
         Promise.resolve(
@@ -56,8 +54,9 @@ describe('me backend call', () => {
     const [url, init] = firstCall
     expect(String(url)).toBe('http://127.0.0.1:8000/me')
     expect(String(init?.method ?? 'GET').toUpperCase()).toBe('GET')
+    expect(init?.credentials).toBe('include')
 
     const headers = new Headers(init?.headers)
-    expect(headers.get('Authorization')).toBe(`Bearer ${token}`)
+    expect(headers.get('Authorization')).toBeNull()
   })
 })

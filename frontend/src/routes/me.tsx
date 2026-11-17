@@ -22,16 +22,9 @@ function Me() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token')
-    if (!token) {
-      // SSR may render this page; send logged-out clients to /login after hydrate.
-      window.location.replace('/login')
-      return
-    }
-
     void fetch(`${backendBaseUrl}/me`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     })
       .then(async (response) => {
         if (response.status !== 200) {

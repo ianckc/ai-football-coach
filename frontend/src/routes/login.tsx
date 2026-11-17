@@ -23,6 +23,7 @@ export function Login() {
     void fetch(`${backendBaseUrl}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password }),
     })
       .then(async (response) => {
@@ -30,8 +31,7 @@ export function Login() {
           setError('Unable to login')
           return
         }
-        const body = (await response.json()) as { email: string; token: string }
-        sessionStorage.setItem('token', body.token)
+        const body = (await response.json()) as { email: string }
         setLoggedInEmail(body.email)
       })
       .catch(() => {

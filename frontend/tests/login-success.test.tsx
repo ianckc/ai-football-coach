@@ -3,10 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Login } from '../src/routes/login'
 
 /**
- * Acceptance slice (ianckc/ai-football-coach#34):
- * On success (`200` with `{ "id", "email", "token" }`), persist the `token` for
- * the browser session and show a logged-in state that includes the coach `email`
- * (do not display the password or treat failure as success).
+ * Acceptance slice (ianckc/ai-football-coach#34), superseded for token storage by #71:
+ * On success (`200` with `{ "id", "email", "token" }`), show a logged-in state
+ * that includes the coach `email` (do not display the password or treat failure
+ * as success). #71: do not persist the session token in JS-readable storage;
+ * the httpOnly cookie from `POST /login` is the browser session.
  */
 describe('login success', () => {
   afterEach(() => {
@@ -16,7 +17,7 @@ describe('login success', () => {
     vi.restoreAllMocks()
   })
 
-  it('on 200 persists the token and shows a logged-in state with email but not the password', async () => {
+  it('on 200 shows a logged-in state with email but not the password and does not persist token in JS storage', async () => {
     const email = 'coach@example.com'
     const password = 'secret123'
     const token = 'opaque-session-token'
@@ -73,9 +74,10 @@ describe('login success', () => {
       'logged-in state must not show the password',
     ).not.toBeInTheDocument()
 
-    expect(sessionStorage.getItem('token'), 'token must be persisted for the browser session').toBe(
-      token,
-    )
+    expect(
+      sessionStorage.getItem('token'),
+      '#71: must not persist the session token in sessionStorage',
+    ).toBeNull()
   })
 
   it('does not treat a non-200 response as a successful login', async () => {
