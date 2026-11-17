@@ -249,6 +249,111 @@ async fn me_get_with_bearer_token_returns_matching_account() {
     );
 }
 
+/// Acceptance slice (#71): Authenticated browser calls (at least `GET /me`)
+/// authenticate from the session cookie (cookie present + valid row in
+/// `sessions` → account).
+#[tokio::test]
+async fn me_get_with_session_cookie_returns_matching_account() {
+    let app = common::test_app().await;
+    let email = unique_email("me-cookie");
+    let password = "secret123";
+    let account_id = create_account(app.clone(), &email, password).await;
+    let token = login_token(app.clone(), &email, password).await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/me")
+                .header("cookie", format!("session={token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "GET /me with session cookie (no Authorization Bearer) must return 200"
+    );
+
+    let json = response_json(response).await;
+    let obj = json
+        .as_object()
+        .expect("GET /me success body must be a JSON object");
+
+    assert_eq!(
+        obj.get("id").and_then(|v| v.as_str()),
+        Some(account_id.as_str()),
+        "GET /me via session cookie must return the account id matching the stored token"
+    );
+    assert_eq!(
+        obj.get("email").and_then(|v| v.as_str()),
+        Some(email.as_str()),
+        "GET /me via session cookie must return the account email matching the stored token"
+    );
+}
+
+/// Acceptance slice (#71): missing/unknown/invalid session cookie → `401`
+/// with the same JSON error shape as today.
+#[tokio::test]
+async fn me_get_rejects_missing_unknown_or_invalid_session_cookie_with_401_json() {
+    let app = common::test_app().await;
+    let unknown_cookie = format!("session={}", Uuid::new_v4());
+    let invalid_cookie = "session=";
+
+    // Establish today's Bearer 401 shape for an unknown token (still supported).
+    let bearer_unknown = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/me")
+                .header("authorization", format!("Bearer {}", Uuid::new_v4()))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        bearer_unknown.status(),
+        StatusCode::UNAUTHORIZED,
+        "setup: Bearer unknown token must still return 401"
+    );
+    let today_shape = response_json(bearer_unknown).await;
+
+    let cases: [(&str, Option<&str>); 3] = [
+        ("missing session cookie and Authorization", None),
+        ("unknown session cookie", Some(unknown_cookie.as_str())),
+        ("invalid empty session cookie", Some(invalid_cookie)),
+    ];
+
+    for (label, cookie) in cases {
+        let mut builder = Request::builder().method("GET").uri("/me");
+        if let Some(value) = cookie {
+            builder = builder.header("cookie", value);
+        }
+        let response = app
+            .clone()
+            .oneshot(builder.body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "GET /me must return 401 for {label}"
+        );
+
+        let json = response_json(response).await;
+        assert_eq!(
+            json, today_shape,
+            "GET /me cookie auth failures must use the same 401 JSON error shape as today; got {json} for {label}"
+        );
+    }
+}
+
 /// Acceptance slice (#59): Reject missing/unknown/invalid `token` on lookup
 /// with `401` and a JSON error body (same shape as other auth errors).
 #[tokio::test]
