@@ -504,3 +504,78 @@ async fn login_post_sets_httponly_session_cookie_with_opaque_token() {
         "session cookie value must be the opaque token already stored in Postgres sessions"
     );
 }
+
+/// Acceptance slice (#71): cookie attributes required for local Vite
+/// (`localhost:3000`) → backend (`127.0.0.1:8000`) cross-origin credentialed
+/// requests (different sites, so SameSite=Lax is not sent on XHR/fetch).
+#[tokio::test]
+async fn login_session_cookie_uses_samesite_none_for_cross_origin_local_vite() {
+    let app = common::test_app().await;
+    let email = unique_email("login-cookie-cross");
+    let password = "secret123";
+
+    let created = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/accounts")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        created.status(),
+        StatusCode::CREATED,
+        "setup: POST /accounts must create the account used for login"
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/login")
+                .header("content-type", "application/json")
+                .header("origin", "http://localhost:3000")
+                .body(Body::from(format!(
+                    r#"{{"email":"{email}","password":"{password}"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "POST /login must return 200 on success"
+    );
+
+    let cookies = set_cookie_headers(response.headers());
+    let session_cookie = cookies.iter().find(|header| {
+        header
+            .split(';')
+            .next()
+            .and_then(|pair| pair.split_once('='))
+            .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case("session"))
+    });
+    let session_cookie = session_cookie.unwrap_or_else(|| {
+        panic!("successful POST /login must Set-Cookie session=…; got Set-Cookie={cookies:?}")
+    });
+
+    let same_site = cookie_attribute_value(session_cookie, "SameSite")
+        .unwrap_or_else(|| panic!("session cookie must set SameSite; got {session_cookie}"))
+        .to_ascii_lowercase();
+    assert_eq!(
+        same_site, "none",
+        "local Vite on localhost:3000 calling API on 127.0.0.1:8000 is cross-site; session cookie must use SameSite=None so credentials:include can send it; got {session_cookie}"
+    );
+    assert!(
+        cookie_attribute_present(session_cookie, "Secure"),
+        "SameSite=None requires Secure for modern browsers (including local http://127.0.0.1); got {session_cookie}"
+    );
+}
