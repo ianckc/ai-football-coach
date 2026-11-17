@@ -209,10 +209,7 @@ pub enum DeleteSessionError {
 /// Invalidate a session by deleting the matching `sessions` row for `token`.
 ///
 /// Missing rows are treated as already invalidated (no error).
-pub async fn delete_session_by_token(
-    pool: &PgPool,
-    token: &str,
-) -> Result<(), DeleteSessionError> {
+pub async fn delete_session_by_token(pool: &PgPool, token: &str) -> Result<(), DeleteSessionError> {
     if token.is_empty() {
         return Ok(());
     }

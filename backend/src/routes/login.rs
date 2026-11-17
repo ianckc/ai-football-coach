@@ -23,9 +23,8 @@ fn error_json(status: StatusCode, message: &str) -> axum::response::Response {
 /// Secure is omitted unless `APP_ENV` is set to a non-local value so
 /// http://localhost can store the cookie during local/test runs.
 fn session_set_cookie(token: &str) -> HeaderValue {
-    let secure = std::env::var("APP_ENV").is_ok_and(|env| {
-        !env.eq_ignore_ascii_case("local") && !env.eq_ignore_ascii_case("test")
-    });
+    let secure = std::env::var("APP_ENV")
+        .is_ok_and(|env| !env.eq_ignore_ascii_case("local") && !env.eq_ignore_ascii_case("test"));
     let mut value = format!("session={token}; Path=/; HttpOnly; SameSite=Lax");
     if secure {
         value.push_str("; Secure");

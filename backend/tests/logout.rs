@@ -57,21 +57,15 @@ fn session_cookie_cleared(set_cookie: &str) -> bool {
     }
     let max_age_zero = cookie_attribute_present(set_cookie, "Max-Age")
         && set_cookie.split(';').any(|part| {
-            part.trim()
-                .split_once('=')
-                .is_some_and(|(key, val)| {
-                    key.trim().eq_ignore_ascii_case("Max-Age") && val.trim() == "0"
-                })
+            part.trim().split_once('=').is_some_and(|(key, val)| {
+                key.trim().eq_ignore_ascii_case("Max-Age") && val.trim() == "0"
+            })
         });
     let expires_past = cookie_attribute_present(set_cookie, "Expires");
     value.is_empty() || max_age_zero || expires_past
 }
 
-async fn create_account_and_login_token(
-    app: axum::Router,
-    email: &str,
-    password: &str,
-) -> String {
+async fn create_account_and_login_token(app: axum::Router, email: &str, password: &str) -> String {
     let created = app
         .clone()
         .oneshot(
@@ -235,9 +229,7 @@ fn backend_api_docs_document_logout_flow() {
     );
     assert!(
         lower.contains("sessions")
-            && (lower.contains("delete")
-                || lower.contains("invalidat")
-                || lower.contains("remov")),
+            && (lower.contains("delete") || lower.contains("invalidat") || lower.contains("remov")),
         "backend-api docs must document that logout invalidates/deletes the matching sessions row"
     );
 }
